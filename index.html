@@ -692,10 +692,8 @@
       };
 
       const NOTE_SIZE = 220;
-      const MIN_SCALE = 0.08;
       const MAX_SCALE = 2.2;
       const DOT_BASE_SPACING = 26;
-      const BOARD_HALF_SIZE = 1600;
 
       const POSTIT_COLORS = [
         { name: 'Klasik Sarı', hex: '#FFF3A1' },
@@ -918,6 +916,22 @@
             notes = [];
           }
 
+          // Önceden çok uzağa bırakılmış veya geçersiz konumlu notları kompakt pano içine topla
+          let needsClampSave = false;
+          notes.forEach((n) => {
+            const safeX = Number.isFinite(n.x) ? n.x : -NOTE_SIZE / 2;
+            const safeY = Number.isFinite(n.y) ? n.y : -NOTE_SIZE / 2;
+            const clamped = clampNoteCoords(safeX, safeY);
+            if (clamped.x !== n.x || clamped.y !== n.y) {
+              n.x = clamped.x;
+              n.y = clamped.y;
+              needsClampSave = true;
+            }
+          });
+          if (needsClampSave) {
+            saveNotes();
+          }
+
           highestZIndex = notes.reduce((max, n) => Math.max(max, n.z || 1), 10);
         } catch (err) {
           console.error('Notlar yüklenemedi:', err);
@@ -941,39 +955,44 @@
       /* =========================================================
          7. KAMERA (PAN & ZOOM) DÖNÜŞÜMÜ VE YUMUŞAK ANİMASYON
       ========================================================= */
-      function getWorldBounds() {
-        const edgePad = 80;
-        let minX = -BOARD_HALF_SIZE - edgePad;
-        let minY = -BOARD_HALF_SIZE - edgePad;
-        let maxX = BOARD_HALF_SIZE + edgePad;
-        let maxY = BOARD_HALF_SIZE + edgePad;
+      function getBoardMetrics() {
+        const vw = Math.max(320, window.innerWidth);
+        const vh = Math.max(320, window.innerHeight);
+        // Ekran en-boy oranıyla birebir aynı, kompakt pano boyutu
+        const factor = Math.max(960 / vw, 960 / vh, 1.5);
+        const worldW = Math.round(vw * factor);
+        const worldH = Math.round(vh * factor);
+        const halfW = worldW / 2;
+        const halfH = worldH / 2;
+        const pad = 72;
 
-        // Önceden sınır dışına bırakılmış notlar varsa onları da kapsa
-        notes.forEach((n) => {
-          minX = Math.min(minX, n.x - edgePad);
-          minY = Math.min(minY, n.y - edgePad);
-          maxX = Math.max(maxX, n.x + NOTE_SIZE + edgePad);
-          maxY = Math.max(maxY, n.y + NOTE_SIZE + edgePad);
-        });
-
-        return { minX, minY, maxX, maxY };
+        return {
+          worldW,
+          worldH,
+          minX: -halfW,
+          maxX: halfW,
+          minY: -halfH,
+          maxY: halfH,
+          noteMinX: -halfW + pad,
+          noteMaxX: halfW - pad - NOTE_SIZE,
+          noteMinY: -halfH + pad,
+          noteMaxY: halfH - pad - NOTE_SIZE
+        };
       }
 
       // Ekranın pano sınırlarının dışını asla göstermemesi için dinamik minimum ölçek
       function getMinScale() {
-        const bounds = getWorldBounds();
-        const worldW = bounds.maxX - bounds.minX;
-        const worldH = bounds.maxY - bounds.minY;
-        return Math.max(window.innerWidth / worldW, window.innerHeight / worldH);
+        const m = getBoardMetrics();
+        return Math.max(window.innerWidth / m.worldW, window.innerHeight / m.worldH);
       }
 
       // Kamerayı pano kenarlarına kilitle (dışarıdaki boşluk hiç görünmez)
       function clampCameraPosition(x, y, scale) {
-        const bounds = getWorldBounds();
-        const minX = window.innerWidth - bounds.maxX * scale;
-        const maxX = -bounds.minX * scale;
-        const minY = window.innerHeight - bounds.maxY * scale;
-        const maxY = -bounds.minY * scale;
+        const m = getBoardMetrics();
+        const minX = window.innerWidth - m.maxX * scale;
+        const maxX = -m.minX * scale;
+        const minY = window.innerHeight - m.maxY * scale;
+        const maxY = -m.minY * scale;
 
         return {
           x: minX > maxX ? (minX + maxX) / 2 : Math.max(minX, Math.min(maxX, x)),
@@ -1035,12 +1054,11 @@
         const clamped = Math.max(getMinScale(), Math.min(MAX_SCALE, newScale));
         const worldX = (screenX - camera.x) / camera.scale;
         const worldY = (screenY - camera.y) / camera.scale;
-
         const targetX = screenX - worldX * clamped;
         const targetY = screenY - worldY * clamped;
 
         if (animate) {
-          animateCameraTo(targetX, targetY, clamped, 240);
+          animateCameraTo(targetX, targetY, clamped, 220);
         } else {
           cancelCameraAnimation();
           camera.scale = clamped;
@@ -1050,11 +1068,18 @@
         }
       }
 
-      function resetViewToFitNotes() {
+      function resetViewToFitNotes(animate = true) {
         unfocusNote();
 
         if (notes.length === 0) {
-          animateCameraTo(window.innerWidth / 2, window.innerHeight / 2, 1.0, 420);
+          if (animate) {
+            animateCameraTo(window.innerWidth / 2, window.innerHeight / 2, 1.0, 420);
+          } else {
+            camera.x = window.innerWidth / 2;
+            camera.y = window.innerHeight / 2;
+            camera.scale = 1.0;
+            applyCameraTransform();
+          }
           return;
         }
 
@@ -1084,16 +1109,25 @@
         const targetX = window.innerWidth / 2 - centerX * finalScale;
         const targetY = (topPad + availH / 2) - centerY * finalScale;
 
-        animateCameraTo(targetX, targetY, finalScale, 440);
+        if (animate) {
+          animateCameraTo(targetX, targetY, finalScale, 440);
+        } else {
+          cancelCameraAnimation();
+          camera.scale = finalScale;
+          camera.x = targetX;
+          camera.y = targetY;
+          applyCameraTransform();
+        }
       }
 
       /* =========================================================
          8. POST-IT OLUŞTURMA, ODAKLAMA, DÜZENLEME VE SİLME
       ========================================================= */
       function clampNoteCoords(x, y) {
+        const m = getBoardMetrics();
         return {
-          x: Math.max(-BOARD_HALF_SIZE, Math.min(BOARD_HALF_SIZE - NOTE_SIZE, Math.round(x))),
-          y: Math.max(-BOARD_HALF_SIZE, Math.min(BOARD_HALF_SIZE - NOTE_SIZE, Math.round(y)))
+          x: Math.max(m.noteMinX, Math.min(m.noteMaxX, Math.round(x))),
+          y: Math.max(m.noteMinY, Math.min(m.noteMaxY, Math.round(y)))
         };
       }
 
@@ -1536,7 +1570,7 @@
         zoomAtPoint(camera.scale * 0.8, window.innerWidth / 2, window.innerHeight / 2, true);
       });
 
-      btnResetView.addEventListener('click', resetViewToFitNotes);
+      btnResetView.addEventListener('click', () => resetViewToFitNotes(true));
 
       /* =========================================================
          11. YENİ NOT EKLEME MODALI VE 16 RENKLİ PALET
@@ -1780,22 +1814,7 @@
         loadNotes();
         renderAllNotes();
         updateBellUI();
-
-        applyCameraTransform();
-        if (notes.length > 0) {
-          let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
-          notes.forEach((n) => {
-            minX = Math.min(minX, n.x);
-            minY = Math.min(minY, n.y);
-            maxX = Math.max(maxX, n.x + NOTE_SIZE);
-            maxY = Math.max(maxY, n.y + NOTE_SIZE);
-          });
-          const centerX = (minX + maxX) / 2;
-          const centerY = (minY + maxY) / 2;
-          camera.x = window.innerWidth / 2 - centerX * camera.scale;
-          camera.y = window.innerHeight / 2 - centerY * camera.scale;
-          applyCameraTransform();
-        }
+        resetViewToFitNotes(false);
       }
 
       window.addEventListener('resize', applyCameraTransform);
