@@ -3,38 +3,43 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
-  <title>Not Panom</title>
+  <title>Notepad</title>
 
   <!-- PWA & Mobil Ana Ekran Meta Etiketleri -->
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-status-bar-style" content="default" />
-  <meta name="apple-mobile-web-app-title" content="Not Panom" />
+  <meta name="apple-mobile-web-app-title" content="Notepad" />
   <meta name="mobile-web-app-capable" content="yes" />
-  <meta name="theme-color" content="#F7F6F2" />
+  <meta id="theme-color-meta" name="theme-color" content="#f6f4ef" />
 
-  <!-- Dinamik olarak JS ile doldurulacak İkon ve Manifest bağlantıları -->
+  <!-- Dinamik Canvas PNG İkon ve PWA Manifest Bağlantıları -->
   <link id="favicon-link" rel="icon" type="image/png" href="" />
   <link id="apple-touch-icon-link" rel="apple-touch-icon" sizes="180x180" href="" />
   <link id="manifest-link" rel="manifest" href="" />
 
-  <!-- Google Fonts: Türkçe destekli el yazısı (Shantell Sans) ve modern arayüz (Inter) -->
+  <!-- Google Fonts: Arayüz fontu (Inter) -->
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Shantell+Sans:ital,wght@0,400;0,500;0,600;1,400&display=swap" rel="stylesheet" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet" />
 
   <!-- Tailwind CSS -->
   <script src="https://cdn.tailwindcss.com"></script>
 
   <style>
     :root {
-      --bg-board: #F7F6F2;
-      --dot-color: #D8D5CC;
-      --accent-orange: #FFA97A;
-      --accent-orange-hover: #FF965E;
+      --bg-board: #f6f4ef;
+      --dot-color: #D8D3C8;
+      --accent-orange: #F6A97A;
       --safe-top: env(safe-area-inset-top, 0px);
+      --safe-right: env(safe-area-inset-right, 0px);
       --safe-bottom: env(safe-area-inset-bottom, 0px);
       --safe-left: env(safe-area-inset-left, 0px);
-      --safe-right: env(safe-area-inset-right, 0px);
+    }
+
+    /* Karanlık Mod Değişkenleri */
+    body.dark-mode {
+      --bg-board: #121215;
+      --dot-color: rgba(255, 255, 255, 0.1);
     }
 
     * {
@@ -74,7 +79,7 @@
       cursor: grabbing;
     }
 
-    /* Dönüşüm (Pan & Zoom) Katmanı */
+    /* Pan & Zoom Dönüşüm Katmanı */
     #board-world {
       position: absolute;
       top: 0;
@@ -88,54 +93,61 @@
     /* Gerçekçi Post-It Kartı */
     .postit {
       position: absolute;
-      width: 210px;
-      height: 210px;
-      border-radius: 2px 2px 3px 2px;
-      padding: 28px 18px 16px 18px;
+      width: 220px;
+      height: 220px;
+      border-radius: 2px 2px 4px 2px;
+      padding: 30px 18px 14px 18px;
       display: flex;
       flex-direction: column;
       justify-content: space-between;
       cursor: grab;
       touch-action: none;
       transform-origin: center center;
-      transition: box-shadow 0.28s cubic-bezier(0.22, 1, 0.36, 1), filter 0.25s ease;
-      /* Hafif kağıt ışık gradyanı + üstte yapışkan şerit efekti */
+      transition: box-shadow 0.25s cubic-bezier(0.22, 1, 0.36, 1);
+      /* Üst yapışkan şerit + kağıt ışık gradyanı */
       background-image:
-        linear-gradient(180deg, rgba(0, 0, 0, 0.055) 0px, rgba(0, 0, 0, 0.03) 22px, rgba(255, 255, 255, 0.14) 23px, rgba(255, 255, 255, 0) 65%, rgba(0, 0, 0, 0.035) 100%);
+        linear-gradient(
+          180deg,
+          rgba(0, 0, 0, 0.06) 0px,
+          rgba(0, 0, 0, 0.032) 24px,
+          rgba(255, 255, 255, 0.16) 25px,
+          rgba(255, 255, 255, 0) 68%,
+          rgba(0, 0, 0, 0.035) 100%
+        );
       box-shadow:
         0 2px 4px rgba(45, 38, 28, 0.07),
         0 6px 14px rgba(45, 38, 28, 0.06),
-        inset 0 1px 0 rgba(255, 255, 255, 0.45);
+        inset 0 1px 0 rgba(255, 255, 255, 0.5);
       will-change: transform, left, top;
     }
 
-    /* Post-It alt-sağ köşe kıvrık gölgesi (fiziksel kağıt hissi) */
+    /* Alt-sağ köşe kıvrık kağıt gölgesi */
     .postit::before {
       content: '';
       position: absolute;
       z-index: -1;
       bottom: 8px;
-      right: 6px;
+      right: 5px;
       width: 68%;
-      height: 28px;
-      background: rgba(32, 26, 18, 0.22);
-      transform: rotate(3.6deg) skewX(6deg);
+      height: 26px;
+      background: rgba(34, 28, 18, 0.22);
+      transform: rotate(3.4deg) skewX(6deg);
       filter: blur(7px);
       border-radius: 2px;
-      transition: all 0.28s cubic-bezier(0.22, 1, 0.36, 1);
+      transition: all 0.25s ease;
       pointer-events: none;
     }
 
-    /* Post-It alt-sol hafif denge gölgesi */
+    /* Alt-sol denge gölgesi */
     .postit::after {
       content: '';
       position: absolute;
       z-index: -1;
       bottom: 6px;
       left: 10px;
-      width: 45%;
-      height: 16px;
-      background: rgba(32, 26, 18, 0.1);
+      width: 44%;
+      height: 14px;
+      background: rgba(34, 28, 18, 0.09);
       transform: rotate(-1.5deg);
       filter: blur(6px);
       pointer-events: none;
@@ -143,84 +155,49 @@
 
     .postit:hover {
       box-shadow:
-        0 4px 8px rgba(45, 38, 28, 0.09),
-        0 10px 20px rgba(45, 38, 28, 0.08),
-        inset 0 1px 0 rgba(255, 255, 255, 0.55);
+        0 4px 10px rgba(45, 38, 28, 0.1),
+        0 10px 22px rgba(45, 38, 28, 0.08),
+        inset 0 1px 0 rgba(255, 255, 255, 0.6);
     }
 
     .postit.is-dragging {
       cursor: grabbing;
       box-shadow:
-        0 14px 28px rgba(45, 38, 28, 0.16),
-        0 6px 12px rgba(45, 38, 28, 0.1);
+        0 16px 32px rgba(45, 38, 28, 0.18),
+        0 6px 14px rgba(45, 38, 28, 0.1);
     }
 
     .postit.is-dragging::before {
       bottom: 2px;
       right: 4px;
       filter: blur(11px);
-      opacity: 0.35;
+      opacity: 0.32;
     }
 
-    /* Odaklanılan (Ekranın Ortasına Gelen) Post-It */
     .postit.is-focused {
       box-shadow:
-        0 18px 40px rgba(40, 32, 22, 0.16),
-        0 6px 14px rgba(40, 32, 22, 0.09),
-        inset 0 1px 0 rgba(255, 255, 255, 0.65);
+        0 18px 42px rgba(38, 30, 20, 0.18),
+        0 6px 16px rgba(38, 30, 20, 0.1),
+        inset 0 1px 0 rgba(255, 255, 255, 0.7);
     }
 
     .postit.is-focused::before {
       bottom: 4px;
       right: 4px;
-      height: 32px;
-      filter: blur(12px);
-      background: rgba(32, 26, 18, 0.26);
+      height: 30px;
+      filter: blur(11px);
+      background: rgba(34, 28, 18, 0.25);
     }
 
-    /* Tamamlandı (Panodan Sökülüp Uçma) Animasyonu */
-    .postit.is-peeling {
-      pointer-events: none;
-      animation: peelOff 0.42s cubic-bezier(0.32, 0, 0.67, 0) forwards;
-    }
-
-    @keyframes peelOff {
-      0% {
-        opacity: 1;
-        transform: rotate(var(--note-rot, 0deg)) scale(1) translateY(0);
-      }
-      30% {
-        opacity: 0.95;
-        transform: rotate(calc(var(--note-rot, 0deg) - 4deg)) scale(1.06) translateY(-10px);
-      }
-      100% {
-        opacity: 0;
-        transform: rotate(calc(var(--note-rot, 0deg) + 12deg)) scale(0.84) translateY(-72px);
-      }
-    }
-
-    /* Yeni Eklenen Post-It Yapışma Animasyonu */
-    .postit.is-popping {
-      animation: stickOn 0.32s cubic-bezier(0.22, 1, 0.36, 1) forwards;
-    }
-
-    @keyframes stickOn {
-      0% {
-        opacity: 0;
-        transform: rotate(var(--note-rot, 0deg)) scale(1.16) translateY(-14px);
-      }
-      100% {
-        opacity: 1;
-        transform: rotate(var(--note-rot, 0deg)) scale(1) translateY(0);
-      }
-    }
-
-    /* Post-It El Yazısı Metni */
+    /* Notun İçindeki Yazı: Düz ve Okunaklı Sans-Serif (Arial) */
     .postit-text {
-      font-family: 'Shantell Sans', 'Inter', cursive, sans-serif;
-      font-size: 16.5px;
+      font-family: Arial, Helvetica, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      font-style: normal;
+      font-weight: 400;
+      font-size: 16px;
       line-height: 1.42;
-      color: #26231F;
+      letter-spacing: 0;
+      color: #22201d;
       word-break: break-word;
       white-space: pre-wrap;
       overflow-y: auto;
@@ -240,12 +217,15 @@
       cursor: text;
     }
 
-    /* Düzenleme Textarea'sı (Odaklı nota tıklandığında) */
+    /* Doğrudan Düzenleme Textarea'sı */
     .postit-edit-area {
-      font-family: 'Shantell Sans', 'Inter', cursive, sans-serif;
-      font-size: 16.5px;
+      font-family: Arial, Helvetica, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      font-style: normal;
+      font-weight: 400;
+      font-size: 16px;
       line-height: 1.42;
-      color: #26231F;
+      letter-spacing: 0;
+      color: #22201d;
       background: transparent;
       border: none;
       outline: none;
@@ -261,61 +241,111 @@
       display: none;
     }
 
-    /* Odaklı Not Üzerindeki Tamamlandı Butonu */
+    /* Her Notun Altındaki Tamamlandı Butonu */
     .postit-actions {
       margin-top: 8px;
       display: flex;
       align-items: center;
       justify-content: flex-end;
-      opacity: 0;
-      pointer-events: none;
-      transform: translateY(6px);
-      transition: opacity 0.22s ease, transform 0.22s ease;
+      opacity: 0.55;
+      transition: opacity 0.2s ease, transform 0.2s ease;
     }
 
+    .postit:hover .postit-actions,
     .postit.is-focused .postit-actions {
       opacity: 1;
-      pointer-events: auto;
-      transform: translateY(0);
     }
 
     .btn-complete {
       display: inline-flex;
       align-items: center;
-      gap: 5px;
-      padding: 6px 12px;
+      gap: 4px;
+      padding: 5px 10px;
       border-radius: 999px;
-      background: rgba(38, 35, 31, 0.88);
+      background: rgba(35, 32, 28, 0.84);
       color: #FFFFFF;
       font-family: 'Inter', sans-serif;
-      font-size: 12px;
+      font-size: 11.5px;
       font-weight: 500;
       letter-spacing: 0.01em;
       border: none;
       cursor: pointer;
-      box-shadow: 0 3px 10px rgba(0, 0, 0, 0.14);
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.14);
       transition: transform 0.15s ease, background-color 0.15s ease;
     }
 
     .btn-complete:hover {
-      background: #1A1815;
-      transform: scale(1.03);
+      background: #171512;
+      transform: scale(1.04);
     }
 
     .btn-complete:active {
-      transform: scale(0.96);
+      transform: scale(0.95);
     }
 
-    /* Modal Post-It Önizleme Kartı */
+    /* Silinme (Panodan Sökülüp Uçma) Animasyonu */
+    .postit.is-peeling {
+      pointer-events: none;
+      animation: peelOff 0.4s cubic-bezier(0.32, 0, 0.67, 0) forwards;
+    }
+
+    @keyframes peelOff {
+      0% {
+        opacity: 1;
+        transform: rotate(var(--note-rot, 0deg)) scale(1) translateY(0);
+      }
+      30% {
+        opacity: 0.95;
+        transform: rotate(calc(var(--note-rot, 0deg) - 4deg)) scale(1.05) translateY(-8px);
+      }
+      100% {
+        opacity: 0;
+        transform: rotate(calc(var(--note-rot, 0deg) + 12deg)) scale(0.82) translateY(-68px);
+      }
+    }
+
+    /* Yeni Not Yapışma Animasyonu */
+    .postit.is-popping {
+      animation: stickOn 0.3s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+    }
+
+    @keyframes stickOn {
+      0% {
+        opacity: 0;
+        transform: rotate(var(--note-rot, 0deg)) scale(1.15) translateY(-14px);
+      }
+      100% {
+        opacity: 1;
+        transform: rotate(var(--note-rot, 0deg)) scale(1) translateY(0);
+      }
+    }
+
+    /* Yüzen Glassmorphism (Buzlu Cam) Kontroller */
+    .floating-pill {
+      background: rgba(255, 255, 255, 0.84);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      border: 1px solid rgba(45, 38, 28, 0.08);
+      box-shadow: 0 4px 16px rgba(45, 38, 28, 0.07), 0 1px 3px rgba(45, 38, 28, 0.04);
+    }
+
+    /* Yeni Not Modalındaki Gerçekçi Post-It Kartı */
     .modal-postit {
       position: relative;
-      border-radius: 3px;
+      border-radius: 4px;
       background-image:
-        linear-gradient(180deg, rgba(0, 0, 0, 0.055) 0px, rgba(0, 0, 0, 0.03) 28px, rgba(255, 255, 255, 0.15) 29px, rgba(255, 255, 255, 0) 65%, rgba(0, 0, 0, 0.03) 100%);
+        linear-gradient(
+          180deg,
+          rgba(0, 0, 0, 0.06) 0px,
+          rgba(0, 0, 0, 0.03) 28px,
+          rgba(255, 255, 255, 0.16) 29px,
+          rgba(255, 255, 255, 0) 66%,
+          rgba(0, 0, 0, 0.03) 100%
+        );
       box-shadow:
-        0 20px 50px rgba(34, 28, 20, 0.2),
-        0 6px 16px rgba(34, 28, 20, 0.1),
-        inset 0 1px 0 rgba(255, 255, 255, 0.5);
+        0 22px 54px rgba(34, 28, 20, 0.22),
+        0 6px 18px rgba(34, 28, 20, 0.1),
+        inset 0 1px 0 rgba(255, 255, 255, 0.55);
       transition: background-color 0.22s ease;
     }
 
@@ -326,46 +356,46 @@
       bottom: 8px;
       right: 10px;
       width: 65%;
-      height: 26px;
-      background: rgba(30, 24, 16, 0.25);
-      transform: rotate(2.6deg);
+      height: 24px;
+      background: rgba(30, 24, 16, 0.24);
+      transform: rotate(2.4deg);
       filter: blur(10px);
       pointer-events: none;
     }
 
-    /* Yüzen Minimalist Kontroller (Glassmorphism) */
-    .floating-pill {
-      background: rgba(255, 255, 255, 0.86);
-      backdrop-filter: blur(12px);
-      -webkit-backdrop-filter: blur(12px);
-      border: 1px solid rgba(45, 38, 28, 0.08);
-      box-shadow: 0 4px 16px rgba(45, 38, 28, 0.07), 0 1px 3px rgba(45, 38, 28, 0.04);
+    .modal-textarea {
+      font-family: Arial, Helvetica, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      font-style: normal;
+      font-weight: 400;
+      font-size: 17px;
+      line-height: 1.45;
+      letter-spacing: 0;
+      color: #22201d;
     }
 
-    /* Renk Seçici Daireler */
+    /* 16 Renklik Seçici Daireler */
     .color-swatch {
       width: 28px;
       height: 28px;
       border-radius: 999px;
-      border: 2px solid rgba(38, 35, 31, 0.12);
+      border: 2px solid rgba(35, 32, 28, 0.12);
       cursor: pointer;
       transition: transform 0.15s ease, box-shadow 0.15s ease, border-color 0.15s ease;
-      position: relative;
     }
 
     .color-swatch:hover {
-      transform: scale(1.12);
+      transform: scale(1.14);
     }
 
     .color-swatch.is-selected {
-      transform: scale(1.14);
-      border-color: #26231F;
-      box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.85), 0 3px 8px rgba(0, 0, 0, 0.15);
+      transform: scale(1.16);
+      border-color: #23201C;
+      box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.9), 0 3px 8px rgba(0, 0, 0, 0.16);
     }
 
-    /* Bildirim Toast'u */
+    /* Üst Toast Bildirimi */
     #toast {
-      transition: opacity 0.26s ease, transform 0.26s cubic-bezier(0.22, 1, 0.36, 1);
+      transition: opacity 0.25s ease, transform 0.25s cubic-bezier(0.22, 1, 0.36, 1);
     }
 
     #toast.is-hidden {
@@ -379,168 +409,269 @@
       transform: translate(-50%, 0);
       pointer-events: auto;
     }
+
+    /* Karanlık Mod Arayüz Stilleri */
+    body.dark-mode .floating-pill {
+      background: rgba(28, 28, 32, 0.88);
+      border-color: rgba(255, 255, 255, 0.12);
+      box-shadow: 0 6px 20px rgba(0, 0, 0, 0.45), 0 1px 3px rgba(0, 0, 0, 0.3);
+      color: #F4F4F5;
+    }
+
+    body.dark-mode #note-count {
+      color: #F4F4F5;
+    }
+
+    body.dark-mode #btn-bell,
+    body.dark-mode #btn-theme,
+    body.dark-mode #btn-zoom-out,
+    body.dark-mode #btn-reset-view,
+    body.dark-mode #btn-zoom-in {
+      color: #E4E4E7;
+    }
+
+    body.dark-mode #btn-bell:hover,
+    body.dark-mode #btn-theme:hover {
+      color: #FFFFFF;
+    }
+
+    body.dark-mode #btn-zoom-out:hover,
+    body.dark-mode #btn-reset-view:hover,
+    body.dark-mode #btn-zoom-in:hover {
+      background-color: rgba(255, 255, 255, 0.1);
+      color: #FFFFFF;
+    }
+
+    body.dark-mode #bell-dot {
+      --tw-ring-color: #1c1c20;
+    }
+
+    body.dark-mode .postit {
+      box-shadow:
+        0 4px 10px rgba(0, 0, 0, 0.42),
+        0 12px 26px rgba(0, 0, 0, 0.36),
+        inset 0 1px 0 rgba(255, 255, 255, 0.45);
+    }
+
+    body.dark-mode .postit::before {
+      background: rgba(0, 0, 0, 0.58);
+    }
+
+    body.dark-mode .postit::after {
+      background: rgba(0, 0, 0, 0.34);
+    }
+
+    body.dark-mode .postit.is-focused {
+      box-shadow:
+        0 22px 48px rgba(0, 0, 0, 0.62),
+        0 8px 20px rgba(0, 0, 0, 0.44),
+        inset 0 1px 0 rgba(255, 255, 255, 0.55);
+    }
+
+    body.dark-mode #add-modal {
+      background-color: rgba(10, 10, 13, 0.72);
+    }
+
+    body.dark-mode .modal-shell {
+      background: rgba(28, 28, 32, 0.88);
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      box-shadow: 0 24px 60px rgba(0, 0, 0, 0.65);
+    }
+
+    body.dark-mode #toast {
+      background-color: rgba(28, 28, 32, 0.94);
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      color: #F4F4F5;
+    }
   </style>
 </head>
 <body>
 
-  <!-- Ana Etkileşimli Post-It Panosu -->
+  <!-- Tam Ekran Etkileşimli Post-It Panosu -->
   <main id="board-viewport" aria-label="Not Panosu">
     <div id="board-world"></div>
   </main>
 
-  <!-- Üst-Sol: Uygulama İkonu ve Aktif Not Sayacı -->
+  <!-- Sol Üst: Uygulama İkonu ve Not Sayacı -->
   <header
     class="fixed z-30 flex items-center gap-2.5 pl-2 pr-3.5 py-1.5 rounded-full floating-pill"
     style="top: calc(16px + var(--safe-top)); left: calc(16px + var(--safe-left));"
   >
-    <!-- LifeTracker Tarzı Uygulama İkonu: Beyaz Yuvarlatılmış Kare + Pastel Turuncu Daire -->
     <div
       class="w-7 h-7 rounded-lg bg-white flex items-center justify-center shadow-sm border border-black/5 shrink-0"
       aria-hidden="true"
     >
-      <span class="w-4 h-4 rounded-full block" style="background-color: #FFA97A;"></span>
+      <span class="w-3.5 h-3.5 rounded-full block" style="background-color: #F6A97A;"></span>
     </div>
-    <span id="note-count" class="text-sm font-medium text-[#2C2824] tracking-tight tabular-nums">
+    <span id="note-count" class="text-sm font-medium text-[#2A2622] tracking-tight tabular-nums">
       0 not
     </span>
   </header>
 
-  <!-- Üst-Sağ: Saatlik Bildirim Zili -->
-  <button
-    id="btn-bell"
-    type="button"
-    aria-label="Saatlik Bildirim"
-    title="Saatlik Bildirim"
-    class="fixed z-30 w-11 h-11 rounded-full floating-pill flex items-center justify-center text-[#4A453F] hover:text-[#26231F] active:scale-95 transition-all"
+  <!-- Sağ Üst: Karanlık Mod, Saatlik Bildirim Zili & + Yeni Not Butonu -->
+  <div
+    class="fixed z-30 flex items-center gap-2.5"
     style="top: calc(16px + var(--safe-top)); right: calc(16px + var(--safe-right));"
   >
-    <svg id="bell-icon" class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-      <path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9" />
-      <path d="M10.3 21a1.94 1.94 0 0 0 3.4 0" />
-    </svg>
-    <!-- Aktif Bildirim Göstergesi -->
-    <span
-      id="bell-dot"
-      class="hidden absolute top-2.5 right-2.5 w-2.5 h-2.5 rounded-full ring-2 ring-white"
-      style="background-color: #FFA97A;"
-    ></span>
-  </button>
+    <!-- Karanlık Mod Geçiş Butonu -->
+    <button
+      id="btn-theme"
+      type="button"
+      aria-label="Karanlık Mod"
+      title="Karanlık Mod"
+      class="w-11 h-11 rounded-full floating-pill flex items-center justify-center text-[#4A453F] hover:text-[#23201C] active:scale-95 transition-all"
+    >
+      <!-- Ay İkonu (Açık modda görünür) -->
+      <svg id="icon-moon" class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" />
+      </svg>
+      <!-- Güneş İkonu (Karanlık modda görünür) -->
+      <svg id="icon-sun" class="w-5 h-5 hidden" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <circle cx="12" cy="12" r="4" />
+        <path d="M12 2v2" />
+        <path d="M12 20v2" />
+        <path d="m4.93 4.93 1.41 1.41" />
+        <path d="m17.66 17.66 1.41 1.41" />
+        <path d="M2 12h2" />
+        <path d="M20 12h2" />
+        <path d="m6.34 17.66-1.41 1.41" />
+        <path d="m19.07 4.93-1.41 1.41" />
+      </svg>
+    </button>
 
-  <!-- Bildirim / Durum Toast Mesajı -->
-  <div
-    id="toast"
-    role="status"
-    aria-live="polite"
-    class="is-hidden fixed left-1/2 z-50 px-4 py-2.5 rounded-full bg-[#26231F]/92 text-white text-xs sm:text-sm font-medium shadow-lg backdrop-blur-md whitespace-nowrap max-w-[90vw] truncate"
-    style="top: calc(20px + var(--safe-top));"
-  ></div>
+    <!-- Saatlik Bildirim Zili -->
+    <button
+      id="btn-bell"
+      type="button"
+      aria-label="Saatlik Bildirim"
+      title="Saatlik Bildirim"
+      class="relative w-11 h-11 rounded-full floating-pill flex items-center justify-center text-[#4A453F] hover:text-[#23201C] active:scale-95 transition-all"
+    >
+      <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9" />
+        <path d="M10.3 21a1.94 1.94 0 0 0 3.4 0" />
+      </svg>
+      <span
+        id="bell-dot"
+        class="hidden absolute top-2.5 right-2.5 w-2.5 h-2.5 rounded-full ring-2 ring-white"
+        style="background-color: #F6A97A;"
+      ></span>
+    </button>
 
-  <!-- Alt-Sağ: Yakınlaştırma Kontrolleri + Yeni Not Ekle (+) Butonu -->
-  <div
-    class="fixed z-30 flex items-center gap-3"
-    style="bottom: calc(20px + var(--safe-bottom)); right: calc(18px + var(--safe-right));"
-  >
-    <!-- Zoom & Ortala Kapsülü -->
-    <div class="floating-pill rounded-full flex items-center p-1 gap-0.5">
-      <button
-        id="btn-zoom-out"
-        type="button"
-        aria-label="Uzaklaştır"
-        title="Uzaklaştır"
-        class="w-9 h-9 rounded-full flex items-center justify-center text-[#3D3832] hover:bg-black/5 active:scale-95 transition"
-      >
-        <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round">
-          <line x1="5" y1="12" x2="19" y2="12" />
-        </svg>
-      </button>
-
-      <button
-        id="btn-reset-view"
-        type="button"
-        aria-label="Panoyu Ortala"
-        title="Ortala"
-        class="px-2.5 h-9 rounded-full flex items-center justify-center text-xs font-medium text-[#524C45] hover:bg-black/5 active:scale-95 transition"
-      >
-        Ortala
-      </button>
-
-      <button
-        id="btn-zoom-in"
-        type="button"
-        aria-label="Yakınlaştır"
-        title="Yakınlaştır"
-        class="w-9 h-9 rounded-full flex items-center justify-center text-[#3D3832] hover:bg-black/5 active:scale-95 transition"
-      >
-        <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round">
-          <line x1="12" y1="5" x2="12" y2="19" />
-          <line x1="5" y1="12" x2="19" y2="12" />
-        </svg>
-      </button>
-    </div>
-
-    <!-- Yeni Not Ekle (+) Butonu -->
+    <!-- + Yeni Not Butonu -->
     <button
       id="btn-add-note"
       type="button"
       aria-label="Yeni Not Ekle"
-      title="Yeni Not Ekle"
-      class="w-14 h-14 rounded-full flex items-center justify-center text-white shadow-lg hover:brightness-95 active:scale-95 transition-all"
-      style="background-color: #FFA97A; box-shadow: 0 8px 22px rgba(255, 169, 122, 0.48), 0 2px 6px rgba(45, 38, 28, 0.1);"
+      class="h-11 px-4 rounded-full flex items-center gap-1.5 text-white text-sm font-medium shadow-md hover:brightness-95 active:scale-95 transition-all"
+      style="background-color: #F6A97A; box-shadow: 0 6px 18px rgba(246, 169, 122, 0.42), 0 2px 5px rgba(45, 38, 28, 0.08);"
     >
-      <svg class="w-7 h-7" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round">
+      <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round">
+        <line x1="12" y1="5" x2="12" y2="19" />
+        <line x1="5" y1="12" x2="19" y2="12" />
+      </svg>
+      <span>Yeni Not</span>
+    </button>
+  </div>
+
+  <!-- Üst Toast Bildirim Mesajı -->
+  <div
+    id="toast"
+    role="status"
+    aria-live="polite"
+    class="is-hidden fixed left-1/2 z-50 px-4 py-2.5 rounded-full bg-[#23201C]/92 text-white text-xs sm:text-sm font-medium shadow-lg backdrop-blur-md whitespace-nowrap max-w-[90vw] truncate"
+    style="top: calc(74px + var(--safe-top));"
+  ></div>
+
+  <!-- Sağ Alt: Minimal Yüzen Zoom Kontrolleri (- / Ortala / +) -->
+  <div
+    class="fixed z-30 floating-pill rounded-full flex items-center p-1 gap-0.5"
+    style="bottom: calc(20px + var(--safe-bottom)); right: calc(16px + var(--safe-right));"
+  >
+    <button
+      id="btn-zoom-out"
+      type="button"
+      aria-label="Uzaklaştır"
+      title="Uzaklaştır"
+      class="w-9 h-9 rounded-full flex items-center justify-center text-[#3D3832] hover:bg-black/5 active:scale-95 transition"
+    >
+      <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round">
+        <line x1="5" y1="12" x2="19" y2="12" />
+      </svg>
+    </button>
+
+    <button
+      id="btn-reset-view"
+      type="button"
+      aria-label="Panoyu Ortala"
+      title="Panoyu Ortala"
+      class="px-2.5 h-9 rounded-full flex items-center justify-center text-xs font-medium text-[#4F4942] hover:bg-black/5 active:scale-95 transition"
+    >
+      Ortala
+    </button>
+
+    <button
+      id="btn-zoom-in"
+      type="button"
+      aria-label="Yakınlaştır"
+      title="Yakınlaştır"
+      class="w-9 h-9 rounded-full flex items-center justify-center text-[#3D3832] hover:bg-black/5 active:scale-95 transition"
+    >
+      <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round">
         <line x1="12" y1="5" x2="12" y2="19" />
         <line x1="5" y1="12" x2="19" y2="12" />
       </svg>
     </button>
   </div>
 
-  <!-- Yeni Not Ekleme Modalı (Fiziksel Post-It Tasarımlı) -->
+  <!-- Yeni Not Ekleme Penceresi (Gerçekçi Post-It Kartı) -->
   <div
     id="add-modal"
-    class="fixed inset-0 z-50 hidden items-center justify-center p-5 bg-[#24201C]/25 backdrop-blur-[3px] transition-opacity"
+    class="fixed inset-0 z-50 hidden items-center justify-center p-4 bg-[#23201C]/28 backdrop-blur-[3px]"
     aria-modal="true"
     role="dialog"
     aria-labelledby="modal-title"
   >
-    <div id="modal-card" class="modal-postit w-full max-w-[320px] p-6 pt-9 flex flex-col gap-4" style="background-color: #FFF394;">
-      <span id="modal-title" class="sr-only">Yeni Not Ekle</span>
+    <div class="modal-shell p-2.5 rounded-2xl transition-colors w-full max-w-[356px]">
+      <div id="modal-card" class="modal-postit w-full p-6 pt-9 flex flex-col gap-4" style="background-color: #FFF3A1;">
+        <span id="modal-title" class="sr-only">Yeni Not Ekle</span>
 
-      <!-- Kapatma İkonu -->
-      <button
-        id="btn-close-modal"
-        type="button"
-        aria-label="Kapat"
-        class="absolute top-2 right-2.5 w-7 h-7 rounded-full flex items-center justify-center text-[#26231F]/55 hover:text-[#26231F] hover:bg-black/5 transition"
-      >
-        <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round">
-          <line x1="18" y1="6" x2="6" y2="18" />
-          <line x1="6" y1="6" x2="18" y2="18" />
-        </svg>
-      </button>
+        <!-- Kapat Butonu -->
+        <button
+          id="btn-close-modal"
+          type="button"
+          aria-label="Kapat"
+          class="absolute top-2 right-2.5 w-7 h-7 rounded-full flex items-center justify-center text-[#23201C]/55 hover:text-[#23201C] hover:bg-black/5 transition"
+        >
+          <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round">
+            <line x1="18" y1="6" x2="6" y2="18" />
+            <line x1="6" y1="6" x2="18" y2="18" />
+          </svg>
+        </button>
 
-      <!-- Not Yazma Alanı -->
-      <textarea
-        id="new-note-input"
-        rows="5"
-        maxlength="280"
-        placeholder="Aklına ne geldi?"
-        class="w-full bg-transparent border-none outline-none resize-none text-[#26231F] placeholder-[#26231F]/40 text-lg leading-relaxed"
-        style="font-family: 'Shantell Sans', 'Inter', cursive, sans-serif;"
-      ></textarea>
+        <!-- Not Yazma Alanı -->
+        <textarea
+          id="new-note-input"
+          rows="5"
+          maxlength="280"
+          placeholder="Aklına ne geldi?"
+          class="modal-textarea w-full bg-transparent border-none outline-none resize-none placeholder-[#23201C]/40"
+        ></textarea>
 
-      <!-- Renk Seçici Palet -->
-      <div class="pt-2 border-t border-black/10">
-        <div id="color-picker" class="flex items-center justify-between gap-1.5" role="radiogroup" aria-label="Not Rengi"></div>
+        <!-- 16 Kağıt Rengi Seçicisi (8x2 Düzenli Grid) -->
+        <div class="pt-3 border-t border-black/10 flex flex-col gap-3.5">
+          <div id="color-picker" class="grid grid-cols-8 gap-2 justify-items-center" role="radiogroup" aria-label="Kağıt Rengi"></div>
+
+          <!-- Panoya Yapıştır Butonu -->
+          <button
+            id="btn-save-note"
+            type="button"
+            class="w-full py-2.5 px-4 rounded-xl bg-[#23201C] text-white text-sm font-medium tracking-wide hover:bg-[#141210] active:scale-[0.98] transition shadow-sm"
+          >
+            Panoya Yapıştır
+          </button>
+        </div>
       </div>
-
-      <!-- Panoya Yapıştır Butonu -->
-      <button
-        id="btn-save-note"
-        type="button"
-        class="w-full py-2.5 px-4 rounded-xl bg-[#26231F] text-white text-sm font-medium tracking-wide hover:bg-[#151311] active:scale-[0.98] transition shadow-sm"
-      >
-        Panoya Yapıştır
-      </button>
     </div>
   </div>
 
@@ -549,41 +680,49 @@
       'use strict';
 
       /* =========================================================
-         1. SABİTLER & RENK PALETİ
+         1. SABİTLER VE 16 POST-IT KAĞIT RENGİ
       ========================================================= */
       const STORAGE_KEYS = {
-        NOTES: 'notpanom_notes_v1',
-        INIT: 'notpanom_initialized_v1',
-        HOURLY_ENABLED: 'notpanom_hourly_enabled_v1',
-        LAST_NOTIFIED_HOUR: 'notpanom_last_notified_hour_v1',
-        LAST_COLOR: 'notpanom_last_color_v1'
+        NOTES: 'notpanom_notes_v2',
+        INIT: 'notpanom_initialized_v2',
+        HOURLY_ENABLED: 'notpanom_hourly_enabled_v2',
+        LAST_NOTIFIED_HOUR: 'notpanom_last_notified_hour_v2',
+        LAST_COLOR: 'notpanom_last_color_v2',
+        DARK_MODE: 'notepad_dark_mode_v1'
       };
 
-      const NOTE_SIZE = 210;
+      const NOTE_SIZE = 220;
       const MIN_SCALE = 0.35;
       const MAX_SCALE = 2.2;
       const DOT_BASE_SPACING = 26;
 
       const POSTIT_COLORS = [
-        { name: 'Klasik Sarı', hex: '#FFF394' },
-        { name: 'Pastel Turuncu', hex: '#FFD1A9' },
-        { name: 'Pastel Pembe', hex: '#FFC4D6' },
-        { name: 'Nane Yeşili', hex: '#C8F2D6' },
-        { name: 'Gök Mavisi', hex: '#C5E4FF' },
-        { name: 'Lavanta', hex: '#E2D1FF' },
-        { name: 'Krem', hex: '#FAF8F0' },
-        { name: 'Adaçayı', hex: '#DCE8B6' }
+        { name: 'Klasik Sarı', hex: '#FFF3A1' },
+        { name: 'Krem', hex: '#FFF9DB' },
+        { name: 'Pastel Turuncu', hex: '#FFD0A6' },
+        { name: 'Şeftali', hex: '#FFDFC4' },
+        { name: 'Mercan', hex: '#FFB8A8' },
+        { name: 'Pastel Pembe', hex: '#FFC8DD' },
+        { name: 'Gül Kurusu', hex: '#F4C2C2' },
+        { name: 'Lavanta', hex: '#E0D4FC' },
+        { name: 'Leylak', hex: '#EFD6FF' },
+        { name: 'Buz Mavisi', hex: '#D4F0FF' },
+        { name: 'Gökyüzü Mavisi', hex: '#BFE3FF' },
+        { name: 'Turkuaz', hex: '#C4F4EC' },
+        { name: 'Nane Yeşili', hex: '#CCF5D8' },
+        { name: 'Fıstık Yeşili', hex: '#E2F5B8' },
+        { name: 'Adaçayı Yeşili', hex: '#D4E6C3' },
+        { name: 'Kraft', hex: '#E8D5B7' }
       ];
 
       /* =========================================================
-         2. DURUM (STATE)
+         2. UYGULAMA DURUMU (STATE)
       ========================================================= */
       let notes = [];
       let selectedColor = localStorage.getItem(STORAGE_KEYS.LAST_COLOR) || POSTIT_COLORS[0].hex;
       let focusedNoteId = null;
       let highestZIndex = 10;
 
-      // Kamera (Pan & Zoom) durumu: (0, 0) noktası başlangıçta ekranın ortasında
       const camera = {
         x: window.innerWidth / 2,
         y: window.innerHeight / 2,
@@ -593,6 +732,7 @@
       let animFrameId = null;
       let toastTimeoutId = null;
       let hourlyEnabled = localStorage.getItem(STORAGE_KEYS.HOURLY_ENABLED) === 'true';
+      let isDarkMode = localStorage.getItem(STORAGE_KEYS.DARK_MODE) === 'true';
       let appIconDataUrl = '';
 
       /* =========================================================
@@ -601,6 +741,10 @@
       const viewportEl = document.getElementById('board-viewport');
       const worldEl = document.getElementById('board-world');
       const noteCountEl = document.getElementById('note-count');
+      const btnTheme = document.getElementById('btn-theme');
+      const iconMoon = document.getElementById('icon-moon');
+      const iconSun = document.getElementById('icon-sun');
+      const themeColorMeta = document.getElementById('theme-color-meta');
       const btnBell = document.getElementById('btn-bell');
       const bellDot = document.getElementById('bell-dot');
       const toastEl = document.getElementById('toast');
@@ -618,8 +762,8 @@
       const btnSaveNote = document.getElementById('btn-save-note');
 
       /* =========================================================
-         4. PWA İKONU & MANİFEST OLUŞTURMA (Canvas)
-         Beyaz arka plan (#FFFFFF) + ortada pastel turuncu daire (#FFA97A, r=%30)
+         4. PWA İKONU (CANVAS PNG) VE DİNAMİK MANİFEST
+         Beyaz zemin (#FFFFFF) + ortada %48 çaplı pastel turuncu (#F6A97A) daire
       ========================================================= */
       function generateIconDataUrl(size) {
         const canvas = document.createElement('canvas');
@@ -627,14 +771,12 @@
         canvas.height = size;
         const ctx = canvas.getContext('2d');
 
-        // Saf beyaz arka plan
         ctx.fillStyle = '#FFFFFF';
         ctx.fillRect(0, 0, size, size);
 
-        // Tam merkezde pastel turuncu daire (yarıçap = genişliğin %30'u)
         ctx.beginPath();
-        ctx.arc(size / 2, size / 2, size * 0.30, 0, Math.PI * 2);
-        ctx.fillStyle = '#FFA97A';
+        ctx.arc(size / 2, size / 2, size * 0.24, 0, Math.PI * 2);
+        ctx.fillStyle = '#F6A97A';
         ctx.fill();
 
         return canvas.toDataURL('image/png');
@@ -643,43 +785,83 @@
       function setupPwaAssets() {
         try {
           const icon180 = generateIconDataUrl(180);
+          const icon192 = generateIconDataUrl(192);
           const icon512 = generateIconDataUrl(512);
-          appIconDataUrl = icon180;
+          appIconDataUrl = icon192;
 
           document.getElementById('apple-touch-icon-link').href = icon180;
-          document.getElementById('favicon-link').href = icon180;
+          document.getElementById('favicon-link').href = icon192;
 
           const manifestObj = {
-            name: 'Not Panom',
-            short_name: 'Not Panom',
-            description: 'Minimalist ve gerçekçi post-it not panosu',
+            name: 'Notepad',
+            short_name: 'Notepad',
+            description: 'Gerçekçi post-it not panosu',
             start_url: '.',
             display: 'standalone',
-            background_color: '#F7F6F2',
-            theme_color: '#F7F6F2',
+            background_color: '#f6f4ef',
+            theme_color: '#f6f4ef',
             icons: [
-              { src: icon180, sizes: '180x180', type: 'image/png', purpose: 'any maskable' },
+              { src: icon192, sizes: '192x192', type: 'image/png', purpose: 'any maskable' },
               { src: icon512, sizes: '512x512', type: 'image/png', purpose: 'any maskable' }
             ]
           };
 
           const blob = new Blob([JSON.stringify(manifestObj)], { type: 'application/manifest+json' });
-          const manifestUrl = URL.createObjectURL(blob);
-          document.getElementById('manifest-link').href = manifestUrl;
+          document.getElementById('manifest-link').href = URL.createObjectURL(blob);
         } catch (err) {
-          console.error('PWA ikon/manifest oluşturulamadı:', err);
+          console.error('PWA varlıkları oluşturulamadı:', err);
         }
       }
 
       /* =========================================================
-         5. TOAST BİLDİRİM YARDIMCISI
+         4B. KARANLIK MOD YÖNETİMİ
       ========================================================= */
-      function showToast(message, duration = 3000) {
-        if (toastTimeoutId) clearTimeout(toastTimeoutId);
+      function applyTheme(dark) {
+        isDarkMode = dark;
+        document.body.classList.toggle('dark-mode', dark);
+
+        if (dark) {
+          iconMoon.classList.add('hidden');
+          iconSun.classList.remove('hidden');
+          btnTheme.setAttribute('aria-label', 'Açık Mod');
+          btnTheme.setAttribute('title', 'Açık Mod');
+          themeColorMeta.setAttribute('content', '#121215');
+        } else {
+          iconSun.classList.add('hidden');
+          iconMoon.classList.remove('hidden');
+          btnTheme.setAttribute('aria-label', 'Karanlık Mod');
+          btnTheme.setAttribute('title', 'Karanlık Mod');
+          themeColorMeta.setAttribute('content', '#f6f4ef');
+        }
+
+        updateBellUI();
+      }
+
+      function toggleTheme() {
+        const next = !isDarkMode;
+        localStorage.setItem(STORAGE_KEYS.DARK_MODE, String(next));
+        applyTheme(next);
+      }
+
+      btnTheme.addEventListener('click', toggleTheme);
+
+      /* =========================================================
+         5. YARDIMCI FONKSİYONLAR (ID, EĞİM, TOAST)
+      ========================================================= */
+      function createId() {
+        return 'n_' + Date.now().toString(36) + '_' + Math.random().toString(36).slice(2, 7);
+      }
+
+      function randomRotation() {
+        return Number(((Math.random() * 5) - 2.5).toFixed(2));
+      }
+
+      function showToast(message, duration = 2600) {
         toastEl.textContent = message;
         toastEl.classList.remove('is-hidden');
         toastEl.classList.add('is-visible');
 
+        if (toastTimeoutId) clearTimeout(toastTimeoutId);
         toastTimeoutId = setTimeout(() => {
           toastEl.classList.remove('is-visible');
           toastEl.classList.add('is-hidden');
@@ -687,43 +869,42 @@
       }
 
       /* =========================================================
-         6. VERİ SAKLAMA (localStorage) & İLK ZİYARET ÖRNEK NOTLARI
+         6. NOTLARI YÜKLEME VE KAYDETME (LOCALSTORAGE)
       ========================================================= */
       function loadNotes() {
         try {
-          const raw = localStorage.getItem(STORAGE_KEYS.NOTES);
           const isInitialized = localStorage.getItem(STORAGE_KEYS.INIT);
+          const raw = localStorage.getItem(STORAGE_KEYS.NOTES);
 
           if (!isInitialized && !raw) {
-            // İlk ziyaret: 3 adet yardımcı Türkçe post-it
             notes = [
               {
                 id: createId(),
-                text: 'Bana tıkla, ekranın ortasına geleyim! ✨',
-                color: '#FFF394',
-                x: -245,
-                y: -120,
-                rotation: -2.4,
+                text: 'Bana tıkla, ekranın ortasına geleyim!',
+                color: '#FFF3A1',
+                x: -255,
+                y: -125,
+                rotation: -2.1,
                 z: 1,
                 createdAt: Date.now()
               },
               {
                 id: createId(),
-                text: 'İki parmakla veya +/- ile yakınlaştırıp uzaklaştırabilirsin.',
-                color: '#FFD1A9',
+                text: 'İki parmakla ya da +/- ile yakınlaştırabilirsin.',
+                color: '#FFD0A6',
                 x: 20,
                 y: -145,
-                rotation: 2.1,
+                rotation: 1.8,
                 z: 2,
                 createdAt: Date.now() + 1
               },
               {
                 id: createId(),
-                text: 'İşin bitince Tamamlandı\'ya bas, panodan uçayım.',
-                color: '#C8F2D6',
-                x: -105,
-                y: 115,
-                rotation: -1.6,
+                text: 'İşin bitince Tamamlandı\'ya bas, panodan silineyim.',
+                color: '#CCF5D8',
+                x: -115,
+                y: 120,
+                rotation: -1.4,
                 z: 3,
                 createdAt: Date.now() + 2
               }
@@ -738,7 +919,7 @@
 
           highestZIndex = notes.reduce((max, n) => Math.max(max, n.z || 1), 10);
         } catch (err) {
-          console.error('Notlar yüklenirken hata:', err);
+          console.error('Notlar yüklenemedi:', err);
           notes = [];
         }
       }
@@ -753,26 +934,15 @@
       }
 
       function updateNoteCounter() {
-        const count = notes.length;
-        noteCountEl.textContent = count === 0 ? '0 not' : `${count} not`;
-      }
-
-      function createId() {
-        return 'n_' + Date.now().toString(36) + '_' + Math.random().toString(36).slice(2, 7);
-      }
-
-      function randomRotation() {
-        // -3.5deg ile +3.5deg arası doğal eğim
-        return Number(((Math.random() * 7) - 3.5).toFixed(2));
+        noteCountEl.textContent = `${notes.length} not`;
       }
 
       /* =========================================================
-         7. KAMERA (PAN & ZOOM) DÖNÜŞÜMÜ VE ANİMASYON
+         7. KAMERA (PAN & ZOOM) DÖNÜŞÜMÜ VE YUMUŞAK ANİMASYON
       ========================================================= */
       function applyCameraTransform() {
         worldEl.style.transform = `translate3d(${camera.x}px, ${camera.y}px, 0) scale(${camera.scale})`;
 
-        // Noktalı ızgarayı kamera hareketi ve yakınlaştırmayla senkronize et
         const spacing = DOT_BASE_SPACING * camera.scale;
         viewportEl.style.backgroundSize = `${spacing}px ${spacing}px`;
         viewportEl.style.backgroundPosition = `${camera.x}px ${camera.y}px`;
@@ -795,9 +965,7 @@
         const startTime = performance.now();
 
         function step(now) {
-          const elapsed = now - startTime;
-          const t = Math.min(1, elapsed / duration);
-          // Yumuşak cubic ease-out
+          const t = Math.min(1, (now - startTime) / duration);
           const ease = 1 - Math.pow(1 - t, 3);
 
           camera.x = startX + (targetX - startX) * ease;
@@ -818,7 +986,6 @@
 
       function zoomAtPoint(newScale, screenX, screenY, animate = false) {
         const clamped = Math.max(MIN_SCALE, Math.min(MAX_SCALE, newScale));
-        // İmleç/merkez altındaki dünya koordinatını koru
         const worldX = (screenX - camera.x) / camera.scale;
         const worldY = (screenY - camera.y) / camera.scale;
 
@@ -844,7 +1011,6 @@
           return;
         }
 
-        // Tüm notların kapsayıcı kutusunu (bounding box) hesapla
         let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
         notes.forEach((n) => {
           minX = Math.min(minX, n.x);
@@ -858,7 +1024,7 @@
         const centerX = minX + boxW / 2;
         const centerY = minY + boxH / 2;
 
-        const padding = window.innerWidth < 640 ? 90 : 140;
+        const padding = window.innerWidth < 640 ? 96 : 150;
         const availW = Math.max(200, window.innerWidth - padding);
         const availH = Math.max(200, window.innerHeight - padding);
 
@@ -868,41 +1034,32 @@
         const targetX = window.innerWidth / 2 - centerX * finalScale;
         const targetY = window.innerHeight / 2 - centerY * finalScale;
 
-        animateCameraTo(targetX, targetY, finalScale, 450);
+        animateCameraTo(targetX, targetY, finalScale, 440);
       }
 
       /* =========================================================
          8. POST-IT OLUŞTURMA, ODAKLAMA, DÜZENLEME VE SİLME
       ========================================================= */
       function findNonOverlappingPosition() {
-        // Mevcut ekran merkezinin dünya koordinatları
         const centerWorldX = (window.innerWidth / 2 - camera.x) / camera.scale - NOTE_SIZE / 2;
         const centerWorldY = (window.innerHeight / 2 - camera.y) / camera.scale - NOTE_SIZE / 2;
-
-        const minDistance = 175;
-        let candidateX = centerWorldX;
-        let candidateY = centerWorldY;
+        const minDistance = 185;
 
         function isCrowded(cx, cy) {
-          return notes.some((n) => {
-            const dx = n.x - cx;
-            const dy = n.y - cy;
-            return Math.hypot(dx, dy) < minDistance;
-          });
+          return notes.some((n) => Math.hypot(n.x - cx, n.y - cy) < minDistance);
         }
 
-        if (!isCrowded(candidateX, candidateY)) {
-          return { x: Math.round(candidateX), y: Math.round(candidateY) };
+        if (!isCrowded(centerWorldX, centerWorldY)) {
+          return { x: Math.round(centerWorldX), y: Math.round(centerWorldY) };
         }
 
-        // Çakışma varsa spiral şeklinde boş alan bul
         for (let step = 1; step <= 48; step++) {
           const angle = step * 0.85;
-          const radius = 55 + step * 28;
-          candidateX = centerWorldX + Math.cos(angle) * radius;
-          candidateY = centerWorldY + Math.sin(angle) * radius;
-          if (!isCrowded(candidateX, candidateY)) {
-            return { x: Math.round(candidateX), y: Math.round(candidateY) };
+          const radius = 60 + step * 28;
+          const cx = centerWorldX + Math.cos(angle) * radius;
+          const cy = centerWorldY + Math.sin(angle) * radius;
+          if (!isCrowded(cx, cy)) {
+            return { x: Math.round(cx), y: Math.round(cy) };
           }
         }
 
@@ -915,8 +1072,7 @@
       function renderAllNotes() {
         worldEl.innerHTML = '';
         notes.forEach((note) => {
-          const el = createNoteElement(note, false);
-          worldEl.appendChild(el);
+          worldEl.appendChild(createNoteElement(note, false));
         });
         updateNoteCounter();
       }
@@ -932,12 +1088,12 @@
         el.style.setProperty('--note-rot', `${note.rotation}deg`);
         el.style.transform = `rotate(${note.rotation}deg)`;
 
-        // Metin alanı
+        // Not Metni
         const textDiv = document.createElement('div');
         textDiv.className = 'postit-text';
         textDiv.textContent = note.text;
 
-        // Odaklandığında görünen "✓ Tamamlandı" aksiyon çubuğu
+        // Tamamlandı Aksiyon Butonu
         const actionsDiv = document.createElement('div');
         actionsDiv.className = 'postit-actions';
 
@@ -951,10 +1107,7 @@
           <span>Tamamlandı</span>
         `;
 
-        completeBtn.addEventListener('pointerdown', (e) => {
-          e.stopPropagation();
-        });
-
+        completeBtn.addEventListener('pointerdown', (e) => e.stopPropagation());
         completeBtn.addEventListener('click', (e) => {
           e.stopPropagation();
           completeAndDeleteNote(note.id, el);
@@ -964,7 +1117,7 @@
         el.appendChild(textDiv);
         el.appendChild(actionsDiv);
 
-        // Odaklı notta metne tıklayınca hızlı düzenleme
+        // Odaklı notun metnine tıklandığında doğrudan düzenleme
         textDiv.addEventListener('click', (e) => {
           if (focusedNoteId === note.id) {
             e.stopPropagation();
@@ -989,19 +1142,22 @@
         textarea.focus();
         textarea.setSelectionRange(textarea.value.length, textarea.value.length);
 
-        const finishEdit = () => {
+        const saveInline = () => {
           const updated = textarea.value.trim();
           if (updated.length > 0) {
             note.text = updated;
             textDiv.textContent = updated;
             saveNotes();
           }
-          textarea.remove();
-          textDiv.style.display = '';
         };
 
+        textarea.addEventListener('input', saveInline);
         textarea.addEventListener('pointerdown', (e) => e.stopPropagation());
-        textarea.addEventListener('blur', finishEdit);
+        textarea.addEventListener('blur', () => {
+          saveInline();
+          textarea.remove();
+          textDiv.style.display = '';
+        });
         textarea.addEventListener('keydown', (e) => {
           if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') {
             textarea.blur();
@@ -1013,7 +1169,6 @@
         const note = notes.find((n) => n.id === noteId);
         if (!note) return;
 
-        // Önceki odaklanmış notu temizle
         if (focusedNoteId && focusedNoteId !== noteId) {
           const prevEl = worldEl.querySelector(`.postit[data-id="${focusedNoteId}"]`);
           if (prevEl) prevEl.classList.remove('is-focused');
@@ -1030,9 +1185,8 @@
           el.classList.add('is-focused');
         }
 
-        // Masaüstünde ~1.35x, mobilde ekran genişliğine rahat sığacak şekilde yakınlaştır
         const targetScale = window.innerWidth < 640
-          ? Math.min(1.32, (window.innerWidth - 68) / NOTE_SIZE)
+          ? Math.min(1.3, (window.innerWidth - 64) / NOTE_SIZE)
           : 1.35;
 
         const noteCenterX = note.x + NOTE_SIZE / 2;
@@ -1063,19 +1217,18 @@
         noteEl.classList.remove('is-focused');
         noteEl.classList.add('is-peeling');
 
-        // Veriyi anında güncelle
         notes = notes.filter((n) => n.id !== noteId);
         saveNotes();
 
         setTimeout(() => {
           noteEl.remove();
-        }, 420);
+        }, 400);
 
-        showToast('Tamamlandı! Panodan silindi.', 2200);
+        showToast('Tamamlandı! Not panodan silindi.', 2200);
       }
 
       /* =========================================================
-         9. NOT SÜRÜKLEME & TIKLAMA AYRIMI (Mouse + Touch)
+         9. NOT SÜRÜKLE-BIRAK VE TIKLAMA AYRIMI
       ========================================================= */
       function attachNoteDragAndTapHandlers(el, note) {
         let isPointerDown = false;
@@ -1087,9 +1240,7 @@
         let activePointerId = null;
 
         el.addEventListener('pointerdown', (e) => {
-          // Çoklu dokunma (pinch zoom) varsa pano ele alsın
           if (activeTouches.size > 1) return;
-          // Düzenleme alanı veya Tamamlandı butonuna basıldıysa sürükleme başlatma
           if (e.target.closest('.btn-complete') || e.target.closest('.postit-edit-area')) return;
           if (e.button !== 0 && e.pointerType === 'mouse') return;
 
@@ -1148,7 +1299,6 @@
           if (hasDragged) {
             saveNotes();
           } else {
-            // Tıklama / Dokunma -> Notu ekranın ortasına getir
             if (focusedNoteId !== note.id) {
               focusNote(note.id);
             }
@@ -1169,7 +1319,6 @@
       let panCameraStartY = 0;
       let panMoved = false;
 
-      // Dokunmatik çoklu parmak takibi (Pinch-to-zoom)
       const activeTouches = new Map();
       let initialPinchDist = 0;
       let initialPinchScale = 1;
@@ -1235,7 +1384,6 @@
         if (isPanning) {
           isPanning = false;
           viewportEl.classList.remove('is-panning');
-          // Boş panoya sadece tıklandıysa odaklı notu kapat
           if (!panMoved) {
             unfocusNote();
           }
@@ -1245,7 +1393,7 @@
       window.addEventListener('pointerup', endPan);
       window.addEventListener('pointercancel', endPan);
 
-      // Dokunmatik pinch-to-zoom notların üzerinde başlasa bile yakala
+      // Dokunmatik iki parmak pinch-to-zoom
       viewportEl.addEventListener('touchstart', (e) => {
         if (e.touches.length === 2) {
           e.preventDefault();
@@ -1269,13 +1417,11 @@
           const midX = (t1.clientX + t2.clientX) / 2;
           const midY = (t1.clientY + t2.clientY) / 2;
 
-          // İki parmakla kaydırma
           camera.x += (midX - lastPinchMidX);
           camera.y += (midY - lastPinchMidY);
           lastPinchMidX = midX;
           lastPinchMidY = midY;
 
-          // İki parmakla ölçekleme
           const newScale = initialPinchScale * (dist / initialPinchDist);
           zoomAtPoint(newScale, midX, midY, false);
         }
@@ -1307,8 +1453,7 @@
         lastPinchMidX = midX;
         lastPinchMidY = midY;
 
-        const newScale = initialPinchScale * (dist / initialPinchDist);
-        zoomAtPoint(newScale, midX, midY, false);
+        zoomAtPoint(initialPinchScale * (dist / initialPinchDist), midX, midY, false);
       }
 
       // Fare tekerleği ile yakınlaştırma/uzaklaştırma
@@ -1330,7 +1475,7 @@
       btnResetView.addEventListener('click', resetViewToFitNotes);
 
       /* =========================================================
-         11. YENİ NOT EKLEME MODALI & RENK PALETİ
+         11. YENİ NOT EKLEME MODALI VE 16 RENKLİ PALET
       ========================================================= */
       function buildColorPicker() {
         colorPickerEl.innerHTML = '';
@@ -1379,7 +1524,7 @@
       function handleSaveNewNote() {
         const text = newNoteInput.value.trim();
         if (!text) {
-          showToast('Önce aklına geleni yaz ✨', 2000);
+          showToast('Önce aklına geleni yaz!', 2000);
           newNoteInput.focus();
           return;
         }
@@ -1405,7 +1550,6 @@
         worldEl.appendChild(el);
         closeAddModal();
 
-        // Yeni not ekranın dışına taştıysa yumuşakça ona kaydır
         const screenX = newNote.x * camera.scale + camera.x;
         const screenY = newNote.y * camera.scale + camera.y;
         const margin = 40;
@@ -1449,7 +1593,7 @@
       });
 
       /* =========================================================
-         12. SAATLİK BİLDİRİM SİSTEMİ (Saat başı :00 uyumlu)
+         12. SAATLİK BİLDİRİM SİSTEMİ (:00)
       ========================================================= */
       function getCurrentHourKey(date = new Date()) {
         const y = date.getFullYear();
@@ -1468,35 +1612,32 @@
       function updateBellUI() {
         if (hourlyEnabled) {
           bellDot.classList.remove('hidden');
-          btnBell.style.borderColor = 'rgba(255, 169, 122, 0.75)';
-          btnBell.style.color = '#26231F';
+          btnBell.style.borderColor = 'rgba(246, 169, 122, 0.85)';
+          btnBell.style.color = isDarkMode ? '#FFFFFF' : '#23201C';
           btnBell.setAttribute('aria-pressed', 'true');
         } else {
           bellDot.classList.add('hidden');
-          btnBell.style.borderColor = 'rgba(45, 38, 28, 0.08)';
-          btnBell.style.color = '#4A453F';
+          btnBell.style.borderColor = '';
+          btnBell.style.color = '';
           btnBell.setAttribute('aria-pressed', 'false');
         }
       }
 
       function triggerHourlyReminder() {
         const count = notes.length;
-        const title = 'Not Panom';
         const body = count > 0
           ? `Panonda ${count} not bekliyor. Bir göz atmak ister misin?`
           : 'Aklına gelen bir şey var mı? Yeni bir not yapıştırabilirsin.';
 
-        // Uygulama içi toast her zaman gösterilir
         showToast(body, 4500);
 
-        // Tarayıcı bildirimi izni varsa gönder
         if ('Notification' in window && Notification.permission === 'granted') {
           try {
-            new Notification(title, {
+            new Notification('Notepad', {
               body,
               icon: appIconDataUrl || undefined,
               badge: appIconDataUrl || undefined,
-              tag: 'notpanom-hourly'
+              tag: 'notepad-hourly'
             });
           } catch (err) {
             console.warn('Tarayıcı bildirimi gönderilemedi:', err);
@@ -1506,12 +1647,9 @@
 
       function checkHourlyTrigger() {
         if (!hourlyEnabled) return;
-
-        const now = new Date();
-        const currentKey = getCurrentHourKey(now);
+        const currentKey = getCurrentHourKey();
         const lastKey = localStorage.getItem(STORAGE_KEYS.LAST_NOTIFIED_HOUR);
 
-        // Yeni bir saate geçildiyse bildirimi tetikle
         if (lastKey && lastKey !== currentKey) {
           localStorage.setItem(STORAGE_KEYS.LAST_NOTIFIED_HOUR, currentKey);
           triggerHourlyReminder();
@@ -1529,10 +1667,8 @@
           return;
         }
 
-        // Bildirim açılıyor
         hourlyEnabled = true;
         localStorage.setItem(STORAGE_KEYS.HOURLY_ENABLED, 'true');
-        // Bulunduğumuz saati işaretle ki bir sonraki saat başında (:00) çalsın
         localStorage.setItem(STORAGE_KEYS.LAST_NOTIFIED_HOUR, getCurrentHourKey());
         updateBellUI();
 
@@ -1563,7 +1699,6 @@
 
       btnBell.addEventListener('click', toggleHourlyNotifications);
 
-      // Drift-safe saat başı kontrolü (her 30 saniyede bir + sekme görünür olunca)
       setInterval(checkHourlyTrigger, 30000);
       document.addEventListener('visibilitychange', () => {
         if (document.visibilityState === 'visible') {
@@ -1576,15 +1711,14 @@
       ========================================================= */
       function init() {
         setupPwaAssets();
+        applyTheme(isDarkMode);
         buildColorPicker();
         loadNotes();
         renderAllNotes();
         updateBellUI();
 
-        // Başlangıçta mevcut notları ekrana ortala
         applyCameraTransform();
         if (notes.length > 0) {
-          // İlk açılışta yumuşakça notları ortala
           let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
           notes.forEach((n) => {
             minX = Math.min(minX, n.x);
@@ -1600,9 +1734,7 @@
         }
       }
 
-      window.addEventListener('resize', () => {
-        applyCameraTransform();
-      });
+      window.addEventListener('resize', applyCameraTransform);
 
       init();
     })();
