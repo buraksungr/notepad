@@ -763,7 +763,7 @@
 
       /* =========================================================
          4. PWA İKONU (CANVAS PNG) VE DİNAMİK MANİFEST
-         Beyaz zemin (#FFFFFF) + ortada %48 çaplı pastel turuncu (#F6A97A) daire
+         Beyaz zemin (#FFFFFF) + ortada %50 çaplı pastel turuncu (#F6A97A) daire
       ========================================================= */
       function generateIconDataUrl(size) {
         const canvas = document.createElement('canvas');
@@ -775,7 +775,7 @@
         ctx.fillRect(0, 0, size, size);
 
         ctx.beginPath();
-        ctx.arc(size / 2, size / 2, size * 0.24, 0, Math.PI * 2);
+        ctx.arc(size / 2, size / 2, size * 0.25, 0, Math.PI * 2);
         ctx.fillStyle = '#F6A97A';
         ctx.fill();
 
