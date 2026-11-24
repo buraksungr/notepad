@@ -692,9 +692,10 @@
       };
 
       const NOTE_SIZE = 220;
-      const MIN_SCALE = 0.35;
+      const MIN_SCALE = 0.08;
       const MAX_SCALE = 2.2;
       const DOT_BASE_SPACING = 26;
+      const BOARD_HALF_SIZE = 1600;
 
       const POSTIT_COLORS = [
         { name: 'Klasik Sarı', hex: '#FFF3A1' },
@@ -940,7 +941,52 @@
       /* =========================================================
          7. KAMERA (PAN & ZOOM) DÖNÜŞÜMÜ VE YUMUŞAK ANİMASYON
       ========================================================= */
+      function getWorldBounds() {
+        const edgePad = 80;
+        let minX = -BOARD_HALF_SIZE - edgePad;
+        let minY = -BOARD_HALF_SIZE - edgePad;
+        let maxX = BOARD_HALF_SIZE + edgePad;
+        let maxY = BOARD_HALF_SIZE + edgePad;
+
+        // Önceden sınır dışına bırakılmış notlar varsa onları da kapsa
+        notes.forEach((n) => {
+          minX = Math.min(minX, n.x - edgePad);
+          minY = Math.min(minY, n.y - edgePad);
+          maxX = Math.max(maxX, n.x + NOTE_SIZE + edgePad);
+          maxY = Math.max(maxY, n.y + NOTE_SIZE + edgePad);
+        });
+
+        return { minX, minY, maxX, maxY };
+      }
+
+      // Ekranın pano sınırlarının dışını asla göstermemesi için dinamik minimum ölçek
+      function getMinScale() {
+        const bounds = getWorldBounds();
+        const worldW = bounds.maxX - bounds.minX;
+        const worldH = bounds.maxY - bounds.minY;
+        return Math.max(window.innerWidth / worldW, window.innerHeight / worldH);
+      }
+
+      // Kamerayı pano kenarlarına kilitle (dışarıdaki boşluk hiç görünmez)
+      function clampCameraPosition(x, y, scale) {
+        const bounds = getWorldBounds();
+        const minX = window.innerWidth - bounds.maxX * scale;
+        const maxX = -bounds.minX * scale;
+        const minY = window.innerHeight - bounds.maxY * scale;
+        const maxY = -bounds.minY * scale;
+
+        return {
+          x: minX > maxX ? (minX + maxX) / 2 : Math.max(minX, Math.min(maxX, x)),
+          y: minY > maxY ? (minY + maxY) / 2 : Math.max(minY, Math.min(maxY, y))
+        };
+      }
+
       function applyCameraTransform() {
+        camera.scale = Math.max(getMinScale(), Math.min(MAX_SCALE, camera.scale));
+        const clamped = clampCameraPosition(camera.x, camera.y, camera.scale);
+        camera.x = clamped.x;
+        camera.y = clamped.y;
+
         worldEl.style.transform = `translate3d(${camera.x}px, ${camera.y}px, 0) scale(${camera.scale})`;
 
         const spacing = DOT_BASE_SPACING * camera.scale;
@@ -961,15 +1007,16 @@
         const startX = camera.x;
         const startY = camera.y;
         const startScale = camera.scale;
-        const clampedScale = Math.max(MIN_SCALE, Math.min(MAX_SCALE, targetScale));
+        const clampedScale = Math.max(getMinScale(), Math.min(MAX_SCALE, targetScale));
+        const clampedTarget = clampCameraPosition(targetX, targetY, clampedScale);
         const startTime = performance.now();
 
         function step(now) {
           const t = Math.min(1, (now - startTime) / duration);
           const ease = 1 - Math.pow(1 - t, 3);
 
-          camera.x = startX + (targetX - startX) * ease;
-          camera.y = startY + (targetY - startY) * ease;
+          camera.x = startX + (clampedTarget.x - startX) * ease;
+          camera.y = startY + (clampedTarget.y - startY) * ease;
           camera.scale = startScale + (clampedScale - startScale) * ease;
 
           applyCameraTransform();
@@ -985,7 +1032,7 @@
       }
 
       function zoomAtPoint(newScale, screenX, screenY, animate = false) {
-        const clamped = Math.max(MIN_SCALE, Math.min(MAX_SCALE, newScale));
+        const clamped = Math.max(getMinScale(), Math.min(MAX_SCALE, newScale));
         const worldX = (screenX - camera.x) / camera.scale;
         const worldY = (screenY - camera.y) / camera.scale;
 
@@ -1019,20 +1066,23 @@
           maxY = Math.max(maxY, n.y + NOTE_SIZE);
         });
 
-        const boxW = maxX - minX;
-        const boxH = maxY - minY;
-        const centerX = minX + boxW / 2;
-        const centerY = minY + boxH / 2;
+        const boxW = Math.max(NOTE_SIZE, maxX - minX);
+        const boxH = Math.max(NOTE_SIZE, maxY - minY);
+        const centerX = minX + (maxX - minX) / 2;
+        const centerY = minY + (maxY - minY) / 2;
 
-        const padding = window.innerWidth < 640 ? 96 : 150;
-        const availW = Math.max(200, window.innerWidth - padding);
-        const availH = Math.max(200, window.innerHeight - padding);
+        // Üst ve alt butonları hesaba katarak tüm notları tek ekrana sığdır
+        const topPad = 84;
+        const bottomPad = 84;
+        const sidePad = window.innerWidth < 640 ? 28 : 64;
+        const availW = Math.max(120, window.innerWidth - sidePad * 2);
+        const availH = Math.max(120, window.innerHeight - topPad - bottomPad);
 
         const fitScale = Math.min(availW / boxW, availH / boxH, 1.05);
-        const finalScale = Math.max(MIN_SCALE, Math.min(1.05, fitScale));
+        const finalScale = Math.max(getMinScale(), Math.min(1.05, fitScale));
 
         const targetX = window.innerWidth / 2 - centerX * finalScale;
-        const targetY = window.innerHeight / 2 - centerY * finalScale;
+        const targetY = (topPad + availH / 2) - centerY * finalScale;
 
         animateCameraTo(targetX, targetY, finalScale, 440);
       }
@@ -1040,6 +1090,13 @@
       /* =========================================================
          8. POST-IT OLUŞTURMA, ODAKLAMA, DÜZENLEME VE SİLME
       ========================================================= */
+      function clampNoteCoords(x, y) {
+        return {
+          x: Math.max(-BOARD_HALF_SIZE, Math.min(BOARD_HALF_SIZE - NOTE_SIZE, Math.round(x))),
+          y: Math.max(-BOARD_HALF_SIZE, Math.min(BOARD_HALF_SIZE - NOTE_SIZE, Math.round(y)))
+        };
+      }
+
       function findNonOverlappingPosition() {
         const centerWorldX = (window.innerWidth / 2 - camera.x) / camera.scale - NOTE_SIZE / 2;
         const centerWorldY = (window.innerHeight / 2 - camera.y) / camera.scale - NOTE_SIZE / 2;
@@ -1049,24 +1106,27 @@
           return notes.some((n) => Math.hypot(n.x - cx, n.y - cy) < minDistance);
         }
 
-        if (!isCrowded(centerWorldX, centerWorldY)) {
-          return { x: Math.round(centerWorldX), y: Math.round(centerWorldY) };
+        const startPos = clampNoteCoords(centerWorldX, centerWorldY);
+        if (!isCrowded(startPos.x, startPos.y)) {
+          return startPos;
         }
 
         for (let step = 1; step <= 48; step++) {
           const angle = step * 0.85;
           const radius = 60 + step * 28;
-          const cx = centerWorldX + Math.cos(angle) * radius;
-          const cy = centerWorldY + Math.sin(angle) * radius;
-          if (!isCrowded(cx, cy)) {
-            return { x: Math.round(cx), y: Math.round(cy) };
+          const candidate = clampNoteCoords(
+            centerWorldX + Math.cos(angle) * radius,
+            centerWorldY + Math.sin(angle) * radius
+          );
+          if (!isCrowded(candidate.x, candidate.y)) {
+            return candidate;
           }
         }
 
-        return {
-          x: Math.round(centerWorldX + (Math.random() * 80 - 40)),
-          y: Math.round(centerWorldY + (Math.random() * 80 - 40))
-        };
+        return clampNoteCoords(
+          centerWorldX + (Math.random() * 80 - 40),
+          centerWorldY + (Math.random() * 80 - 40)
+        );
       }
 
       function renderAllNotes() {
@@ -1278,8 +1338,12 @@
           }
 
           if (hasDragged) {
-            note.x = Math.round(startNoteX + dx / camera.scale);
-            note.y = Math.round(startNoteY + dy / camera.scale);
+            const clampedPos = clampNoteCoords(
+              startNoteX + dx / camera.scale,
+              startNoteY + dy / camera.scale
+            );
+            note.x = clampedPos.x;
+            note.y = clampedPos.y;
             el.style.left = `${note.x}px`;
             el.style.top = `${note.y}px`;
           }
