@@ -1,0 +1,1611 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+  <title>Not Panom</title>
+
+  <!-- PWA & Mobil Ana Ekran Meta Etiketleri -->
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+  <meta name="apple-mobile-web-app-title" content="Not Panom" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="theme-color" content="#F7F6F2" />
+
+  <!-- Dinamik olarak JS ile doldurulacak İkon ve Manifest bağlantıları -->
+  <link id="favicon-link" rel="icon" type="image/png" href="" />
+  <link id="apple-touch-icon-link" rel="apple-touch-icon" sizes="180x180" href="" />
+  <link id="manifest-link" rel="manifest" href="" />
+
+  <!-- Google Fonts: Türkçe destekli el yazısı (Shantell Sans) ve modern arayüz (Inter) -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Shantell+Sans:ital,wght@0,400;0,500;0,600;1,400&display=swap" rel="stylesheet" />
+
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+
+  <style>
+    :root {
+      --bg-board: #F7F6F2;
+      --dot-color: #D8D5CC;
+      --accent-orange: #FFA97A;
+      --accent-orange-hover: #FF965E;
+      --safe-top: env(safe-area-inset-top, 0px);
+      --safe-bottom: env(safe-area-inset-bottom, 0px);
+      --safe-left: env(safe-area-inset-left, 0px);
+      --safe-right: env(safe-area-inset-right, 0px);
+    }
+
+    * {
+      box-sizing: border-box;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    html, body {
+      margin: 0;
+      padding: 0;
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      background-color: var(--bg-board);
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+      user-select: none;
+      -webkit-user-select: none;
+      overscroll-behavior: none;
+    }
+
+    /* Sonsuz Noktalı Pano Arka Planı */
+    #board-viewport {
+      position: fixed;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      background-color: var(--bg-board);
+      background-image: radial-gradient(circle, var(--dot-color) 1.35px, transparent 1.35px);
+      background-size: 26px 26px;
+      background-position: 0px 0px;
+      cursor: grab;
+      touch-action: none;
+    }
+
+    #board-viewport.is-panning {
+      cursor: grabbing;
+    }
+
+    /* Dönüşüm (Pan & Zoom) Katmanı */
+    #board-world {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 0;
+      height: 0;
+      transform-origin: 0 0;
+      will-change: transform;
+    }
+
+    /* Gerçekçi Post-It Kartı */
+    .postit {
+      position: absolute;
+      width: 210px;
+      height: 210px;
+      border-radius: 2px 2px 3px 2px;
+      padding: 28px 18px 16px 18px;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      cursor: grab;
+      touch-action: none;
+      transform-origin: center center;
+      transition: box-shadow 0.28s cubic-bezier(0.22, 1, 0.36, 1), filter 0.25s ease;
+      /* Hafif kağıt ışık gradyanı + üstte yapışkan şerit efekti */
+      background-image:
+        linear-gradient(180deg, rgba(0, 0, 0, 0.055) 0px, rgba(0, 0, 0, 0.03) 22px, rgba(255, 255, 255, 0.14) 23px, rgba(255, 255, 255, 0) 65%, rgba(0, 0, 0, 0.035) 100%);
+      box-shadow:
+        0 2px 4px rgba(45, 38, 28, 0.07),
+        0 6px 14px rgba(45, 38, 28, 0.06),
+        inset 0 1px 0 rgba(255, 255, 255, 0.45);
+      will-change: transform, left, top;
+    }
+
+    /* Post-It alt-sağ köşe kıvrık gölgesi (fiziksel kağıt hissi) */
+    .postit::before {
+      content: '';
+      position: absolute;
+      z-index: -1;
+      bottom: 8px;
+      right: 6px;
+      width: 68%;
+      height: 28px;
+      background: rgba(32, 26, 18, 0.22);
+      transform: rotate(3.6deg) skewX(6deg);
+      filter: blur(7px);
+      border-radius: 2px;
+      transition: all 0.28s cubic-bezier(0.22, 1, 0.36, 1);
+      pointer-events: none;
+    }
+
+    /* Post-It alt-sol hafif denge gölgesi */
+    .postit::after {
+      content: '';
+      position: absolute;
+      z-index: -1;
+      bottom: 6px;
+      left: 10px;
+      width: 45%;
+      height: 16px;
+      background: rgba(32, 26, 18, 0.1);
+      transform: rotate(-1.5deg);
+      filter: blur(6px);
+      pointer-events: none;
+    }
+
+    .postit:hover {
+      box-shadow:
+        0 4px 8px rgba(45, 38, 28, 0.09),
+        0 10px 20px rgba(45, 38, 28, 0.08),
+        inset 0 1px 0 rgba(255, 255, 255, 0.55);
+    }
+
+    .postit.is-dragging {
+      cursor: grabbing;
+      box-shadow:
+        0 14px 28px rgba(45, 38, 28, 0.16),
+        0 6px 12px rgba(45, 38, 28, 0.1);
+    }
+
+    .postit.is-dragging::before {
+      bottom: 2px;
+      right: 4px;
+      filter: blur(11px);
+      opacity: 0.35;
+    }
+
+    /* Odaklanılan (Ekranın Ortasına Gelen) Post-It */
+    .postit.is-focused {
+      box-shadow:
+        0 18px 40px rgba(40, 32, 22, 0.16),
+        0 6px 14px rgba(40, 32, 22, 0.09),
+        inset 0 1px 0 rgba(255, 255, 255, 0.65);
+    }
+
+    .postit.is-focused::before {
+      bottom: 4px;
+      right: 4px;
+      height: 32px;
+      filter: blur(12px);
+      background: rgba(32, 26, 18, 0.26);
+    }
+
+    /* Tamamlandı (Panodan Sökülüp Uçma) Animasyonu */
+    .postit.is-peeling {
+      pointer-events: none;
+      animation: peelOff 0.42s cubic-bezier(0.32, 0, 0.67, 0) forwards;
+    }
+
+    @keyframes peelOff {
+      0% {
+        opacity: 1;
+        transform: rotate(var(--note-rot, 0deg)) scale(1) translateY(0);
+      }
+      30% {
+        opacity: 0.95;
+        transform: rotate(calc(var(--note-rot, 0deg) - 4deg)) scale(1.06) translateY(-10px);
+      }
+      100% {
+        opacity: 0;
+        transform: rotate(calc(var(--note-rot, 0deg) + 12deg)) scale(0.84) translateY(-72px);
+      }
+    }
+
+    /* Yeni Eklenen Post-It Yapışma Animasyonu */
+    .postit.is-popping {
+      animation: stickOn 0.32s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+    }
+
+    @keyframes stickOn {
+      0% {
+        opacity: 0;
+        transform: rotate(var(--note-rot, 0deg)) scale(1.16) translateY(-14px);
+      }
+      100% {
+        opacity: 1;
+        transform: rotate(var(--note-rot, 0deg)) scale(1) translateY(0);
+      }
+    }
+
+    /* Post-It El Yazısı Metni */
+    .postit-text {
+      font-family: 'Shantell Sans', 'Inter', cursive, sans-serif;
+      font-size: 16.5px;
+      line-height: 1.42;
+      color: #26231F;
+      word-break: break-word;
+      white-space: pre-wrap;
+      overflow-y: auto;
+      flex: 1;
+      scrollbar-width: none;
+      -ms-overflow-style: none;
+      outline: none;
+    }
+
+    .postit-text::-webkit-scrollbar {
+      display: none;
+    }
+
+    .postit.is-focused .postit-text {
+      user-select: text;
+      -webkit-user-select: text;
+      cursor: text;
+    }
+
+    /* Düzenleme Textarea'sı (Odaklı nota tıklandığında) */
+    .postit-edit-area {
+      font-family: 'Shantell Sans', 'Inter', cursive, sans-serif;
+      font-size: 16.5px;
+      line-height: 1.42;
+      color: #26231F;
+      background: transparent;
+      border: none;
+      outline: none;
+      resize: none;
+      width: 100%;
+      flex: 1;
+      padding: 0;
+      margin: 0;
+      scrollbar-width: none;
+    }
+
+    .postit-edit-area::-webkit-scrollbar {
+      display: none;
+    }
+
+    /* Odaklı Not Üzerindeki Tamamlandı Butonu */
+    .postit-actions {
+      margin-top: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: flex-end;
+      opacity: 0;
+      pointer-events: none;
+      transform: translateY(6px);
+      transition: opacity 0.22s ease, transform 0.22s ease;
+    }
+
+    .postit.is-focused .postit-actions {
+      opacity: 1;
+      pointer-events: auto;
+      transform: translateY(0);
+    }
+
+    .btn-complete {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      padding: 6px 12px;
+      border-radius: 999px;
+      background: rgba(38, 35, 31, 0.88);
+      color: #FFFFFF;
+      font-family: 'Inter', sans-serif;
+      font-size: 12px;
+      font-weight: 500;
+      letter-spacing: 0.01em;
+      border: none;
+      cursor: pointer;
+      box-shadow: 0 3px 10px rgba(0, 0, 0, 0.14);
+      transition: transform 0.15s ease, background-color 0.15s ease;
+    }
+
+    .btn-complete:hover {
+      background: #1A1815;
+      transform: scale(1.03);
+    }
+
+    .btn-complete:active {
+      transform: scale(0.96);
+    }
+
+    /* Modal Post-It Önizleme Kartı */
+    .modal-postit {
+      position: relative;
+      border-radius: 3px;
+      background-image:
+        linear-gradient(180deg, rgba(0, 0, 0, 0.055) 0px, rgba(0, 0, 0, 0.03) 28px, rgba(255, 255, 255, 0.15) 29px, rgba(255, 255, 255, 0) 65%, rgba(0, 0, 0, 0.03) 100%);
+      box-shadow:
+        0 20px 50px rgba(34, 28, 20, 0.2),
+        0 6px 16px rgba(34, 28, 20, 0.1),
+        inset 0 1px 0 rgba(255, 255, 255, 0.5);
+      transition: background-color 0.22s ease;
+    }
+
+    .modal-postit::before {
+      content: '';
+      position: absolute;
+      z-index: -1;
+      bottom: 8px;
+      right: 10px;
+      width: 65%;
+      height: 26px;
+      background: rgba(30, 24, 16, 0.25);
+      transform: rotate(2.6deg);
+      filter: blur(10px);
+      pointer-events: none;
+    }
+
+    /* Yüzen Minimalist Kontroller (Glassmorphism) */
+    .floating-pill {
+      background: rgba(255, 255, 255, 0.86);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      border: 1px solid rgba(45, 38, 28, 0.08);
+      box-shadow: 0 4px 16px rgba(45, 38, 28, 0.07), 0 1px 3px rgba(45, 38, 28, 0.04);
+    }
+
+    /* Renk Seçici Daireler */
+    .color-swatch {
+      width: 28px;
+      height: 28px;
+      border-radius: 999px;
+      border: 2px solid rgba(38, 35, 31, 0.12);
+      cursor: pointer;
+      transition: transform 0.15s ease, box-shadow 0.15s ease, border-color 0.15s ease;
+      position: relative;
+    }
+
+    .color-swatch:hover {
+      transform: scale(1.12);
+    }
+
+    .color-swatch.is-selected {
+      transform: scale(1.14);
+      border-color: #26231F;
+      box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.85), 0 3px 8px rgba(0, 0, 0, 0.15);
+    }
+
+    /* Bildirim Toast'u */
+    #toast {
+      transition: opacity 0.26s ease, transform 0.26s cubic-bezier(0.22, 1, 0.36, 1);
+    }
+
+    #toast.is-hidden {
+      opacity: 0;
+      transform: translate(-50%, -14px);
+      pointer-events: none;
+    }
+
+    #toast.is-visible {
+      opacity: 1;
+      transform: translate(-50%, 0);
+      pointer-events: auto;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Ana Etkileşimli Post-It Panosu -->
+  <main id="board-viewport" aria-label="Not Panosu">
+    <div id="board-world"></div>
+  </main>
+
+  <!-- Üst-Sol: Uygulama İkonu ve Aktif Not Sayacı -->
+  <header
+    class="fixed z-30 flex items-center gap-2.5 pl-2 pr-3.5 py-1.5 rounded-full floating-pill"
+    style="top: calc(16px + var(--safe-top)); left: calc(16px + var(--safe-left));"
+  >
+    <!-- LifeTracker Tarzı Uygulama İkonu: Beyaz Yuvarlatılmış Kare + Pastel Turuncu Daire -->
+    <div
+      class="w-7 h-7 rounded-lg bg-white flex items-center justify-center shadow-sm border border-black/5 shrink-0"
+      aria-hidden="true"
+    >
+      <span class="w-4 h-4 rounded-full block" style="background-color: #FFA97A;"></span>
+    </div>
+    <span id="note-count" class="text-sm font-medium text-[#2C2824] tracking-tight tabular-nums">
+      0 not
+    </span>
+  </header>
+
+  <!-- Üst-Sağ: Saatlik Bildirim Zili -->
+  <button
+    id="btn-bell"
+    type="button"
+    aria-label="Saatlik Bildirim"
+    title="Saatlik Bildirim"
+    class="fixed z-30 w-11 h-11 rounded-full floating-pill flex items-center justify-center text-[#4A453F] hover:text-[#26231F] active:scale-95 transition-all"
+    style="top: calc(16px + var(--safe-top)); right: calc(16px + var(--safe-right));"
+  >
+    <svg id="bell-icon" class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9" />
+      <path d="M10.3 21a1.94 1.94 0 0 0 3.4 0" />
+    </svg>
+    <!-- Aktif Bildirim Göstergesi -->
+    <span
+      id="bell-dot"
+      class="hidden absolute top-2.5 right-2.5 w-2.5 h-2.5 rounded-full ring-2 ring-white"
+      style="background-color: #FFA97A;"
+    ></span>
+  </button>
+
+  <!-- Bildirim / Durum Toast Mesajı -->
+  <div
+    id="toast"
+    role="status"
+    aria-live="polite"
+    class="is-hidden fixed left-1/2 z-50 px-4 py-2.5 rounded-full bg-[#26231F]/92 text-white text-xs sm:text-sm font-medium shadow-lg backdrop-blur-md whitespace-nowrap max-w-[90vw] truncate"
+    style="top: calc(20px + var(--safe-top));"
+  ></div>
+
+  <!-- Alt-Sağ: Yakınlaştırma Kontrolleri + Yeni Not Ekle (+) Butonu -->
+  <div
+    class="fixed z-30 flex items-center gap-3"
+    style="bottom: calc(20px + var(--safe-bottom)); right: calc(18px + var(--safe-right));"
+  >
+    <!-- Zoom & Ortala Kapsülü -->
+    <div class="floating-pill rounded-full flex items-center p-1 gap-0.5">
+      <button
+        id="btn-zoom-out"
+        type="button"
+        aria-label="Uzaklaştır"
+        title="Uzaklaştır"
+        class="w-9 h-9 rounded-full flex items-center justify-center text-[#3D3832] hover:bg-black/5 active:scale-95 transition"
+      >
+        <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round">
+          <line x1="5" y1="12" x2="19" y2="12" />
+        </svg>
+      </button>
+
+      <button
+        id="btn-reset-view"
+        type="button"
+        aria-label="Panoyu Ortala"
+        title="Ortala"
+        class="px-2.5 h-9 rounded-full flex items-center justify-center text-xs font-medium text-[#524C45] hover:bg-black/5 active:scale-95 transition"
+      >
+        Ortala
+      </button>
+
+      <button
+        id="btn-zoom-in"
+        type="button"
+        aria-label="Yakınlaştır"
+        title="Yakınlaştır"
+        class="w-9 h-9 rounded-full flex items-center justify-center text-[#3D3832] hover:bg-black/5 active:scale-95 transition"
+      >
+        <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round">
+          <line x1="12" y1="5" x2="12" y2="19" />
+          <line x1="5" y1="12" x2="19" y2="12" />
+        </svg>
+      </button>
+    </div>
+
+    <!-- Yeni Not Ekle (+) Butonu -->
+    <button
+      id="btn-add-note"
+      type="button"
+      aria-label="Yeni Not Ekle"
+      title="Yeni Not Ekle"
+      class="w-14 h-14 rounded-full flex items-center justify-center text-white shadow-lg hover:brightness-95 active:scale-95 transition-all"
+      style="background-color: #FFA97A; box-shadow: 0 8px 22px rgba(255, 169, 122, 0.48), 0 2px 6px rgba(45, 38, 28, 0.1);"
+    >
+      <svg class="w-7 h-7" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round">
+        <line x1="12" y1="5" x2="12" y2="19" />
+        <line x1="5" y1="12" x2="19" y2="12" />
+      </svg>
+    </button>
+  </div>
+
+  <!-- Yeni Not Ekleme Modalı (Fiziksel Post-It Tasarımlı) -->
+  <div
+    id="add-modal"
+    class="fixed inset-0 z-50 hidden items-center justify-center p-5 bg-[#24201C]/25 backdrop-blur-[3px] transition-opacity"
+    aria-modal="true"
+    role="dialog"
+    aria-labelledby="modal-title"
+  >
+    <div id="modal-card" class="modal-postit w-full max-w-[320px] p-6 pt-9 flex flex-col gap-4" style="background-color: #FFF394;">
+      <span id="modal-title" class="sr-only">Yeni Not Ekle</span>
+
+      <!-- Kapatma İkonu -->
+      <button
+        id="btn-close-modal"
+        type="button"
+        aria-label="Kapat"
+        class="absolute top-2 right-2.5 w-7 h-7 rounded-full flex items-center justify-center text-[#26231F]/55 hover:text-[#26231F] hover:bg-black/5 transition"
+      >
+        <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round">
+          <line x1="18" y1="6" x2="6" y2="18" />
+          <line x1="6" y1="6" x2="18" y2="18" />
+        </svg>
+      </button>
+
+      <!-- Not Yazma Alanı -->
+      <textarea
+        id="new-note-input"
+        rows="5"
+        maxlength="280"
+        placeholder="Aklına ne geldi?"
+        class="w-full bg-transparent border-none outline-none resize-none text-[#26231F] placeholder-[#26231F]/40 text-lg leading-relaxed"
+        style="font-family: 'Shantell Sans', 'Inter', cursive, sans-serif;"
+      ></textarea>
+
+      <!-- Renk Seçici Palet -->
+      <div class="pt-2 border-t border-black/10">
+        <div id="color-picker" class="flex items-center justify-between gap-1.5" role="radiogroup" aria-label="Not Rengi"></div>
+      </div>
+
+      <!-- Panoya Yapıştır Butonu -->
+      <button
+        id="btn-save-note"
+        type="button"
+        class="w-full py-2.5 px-4 rounded-xl bg-[#26231F] text-white text-sm font-medium tracking-wide hover:bg-[#151311] active:scale-[0.98] transition shadow-sm"
+      >
+        Panoya Yapıştır
+      </button>
+    </div>
+  </div>
+
+  <script>
+    (function () {
+      'use strict';
+
+      /* =========================================================
+         1. SABİTLER & RENK PALETİ
+      ========================================================= */
+      const STORAGE_KEYS = {
+        NOTES: 'notpanom_notes_v1',
+        INIT: 'notpanom_initialized_v1',
+        HOURLY_ENABLED: 'notpanom_hourly_enabled_v1',
+        LAST_NOTIFIED_HOUR: 'notpanom_last_notified_hour_v1',
+        LAST_COLOR: 'notpanom_last_color_v1'
+      };
+
+      const NOTE_SIZE = 210;
+      const MIN_SCALE = 0.35;
+      const MAX_SCALE = 2.2;
+      const DOT_BASE_SPACING = 26;
+
+      const POSTIT_COLORS = [
+        { name: 'Klasik Sarı', hex: '#FFF394' },
+        { name: 'Pastel Turuncu', hex: '#FFD1A9' },
+        { name: 'Pastel Pembe', hex: '#FFC4D6' },
+        { name: 'Nane Yeşili', hex: '#C8F2D6' },
+        { name: 'Gök Mavisi', hex: '#C5E4FF' },
+        { name: 'Lavanta', hex: '#E2D1FF' },
+        { name: 'Krem', hex: '#FAF8F0' },
+        { name: 'Adaçayı', hex: '#DCE8B6' }
+      ];
+
+      /* =========================================================
+         2. DURUM (STATE)
+      ========================================================= */
+      let notes = [];
+      let selectedColor = localStorage.getItem(STORAGE_KEYS.LAST_COLOR) || POSTIT_COLORS[0].hex;
+      let focusedNoteId = null;
+      let highestZIndex = 10;
+
+      // Kamera (Pan & Zoom) durumu: (0, 0) noktası başlangıçta ekranın ortasında
+      const camera = {
+        x: window.innerWidth / 2,
+        y: window.innerHeight / 2,
+        scale: window.innerWidth < 640 ? 0.85 : 1.0
+      };
+
+      let animFrameId = null;
+      let toastTimeoutId = null;
+      let hourlyEnabled = localStorage.getItem(STORAGE_KEYS.HOURLY_ENABLED) === 'true';
+      let appIconDataUrl = '';
+
+      /* =========================================================
+         3. DOM REFERANSLARI
+      ========================================================= */
+      const viewportEl = document.getElementById('board-viewport');
+      const worldEl = document.getElementById('board-world');
+      const noteCountEl = document.getElementById('note-count');
+      const btnBell = document.getElementById('btn-bell');
+      const bellDot = document.getElementById('bell-dot');
+      const toastEl = document.getElementById('toast');
+
+      const btnZoomIn = document.getElementById('btn-zoom-in');
+      const btnZoomOut = document.getElementById('btn-zoom-out');
+      const btnResetView = document.getElementById('btn-reset-view');
+      const btnAddNote = document.getElementById('btn-add-note');
+
+      const addModal = document.getElementById('add-modal');
+      const modalCard = document.getElementById('modal-card');
+      const btnCloseModal = document.getElementById('btn-close-modal');
+      const newNoteInput = document.getElementById('new-note-input');
+      const colorPickerEl = document.getElementById('color-picker');
+      const btnSaveNote = document.getElementById('btn-save-note');
+
+      /* =========================================================
+         4. PWA İKONU & MANİFEST OLUŞTURMA (Canvas)
+         Beyaz arka plan (#FFFFFF) + ortada pastel turuncu daire (#FFA97A, r=%30)
+      ========================================================= */
+      function generateIconDataUrl(size) {
+        const canvas = document.createElement('canvas');
+        canvas.width = size;
+        canvas.height = size;
+        const ctx = canvas.getContext('2d');
+
+        // Saf beyaz arka plan
+        ctx.fillStyle = '#FFFFFF';
+        ctx.fillRect(0, 0, size, size);
+
+        // Tam merkezde pastel turuncu daire (yarıçap = genişliğin %30'u)
+        ctx.beginPath();
+        ctx.arc(size / 2, size / 2, size * 0.30, 0, Math.PI * 2);
+        ctx.fillStyle = '#FFA97A';
+        ctx.fill();
+
+        return canvas.toDataURL('image/png');
+      }
+
+      function setupPwaAssets() {
+        try {
+          const icon180 = generateIconDataUrl(180);
+          const icon512 = generateIconDataUrl(512);
+          appIconDataUrl = icon180;
+
+          document.getElementById('apple-touch-icon-link').href = icon180;
+          document.getElementById('favicon-link').href = icon180;
+
+          const manifestObj = {
+            name: 'Not Panom',
+            short_name: 'Not Panom',
+            description: 'Minimalist ve gerçekçi post-it not panosu',
+            start_url: '.',
+            display: 'standalone',
+            background_color: '#F7F6F2',
+            theme_color: '#F7F6F2',
+            icons: [
+              { src: icon180, sizes: '180x180', type: 'image/png', purpose: 'any maskable' },
+              { src: icon512, sizes: '512x512', type: 'image/png', purpose: 'any maskable' }
+            ]
+          };
+
+          const blob = new Blob([JSON.stringify(manifestObj)], { type: 'application/manifest+json' });
+          const manifestUrl = URL.createObjectURL(blob);
+          document.getElementById('manifest-link').href = manifestUrl;
+        } catch (err) {
+          console.error('PWA ikon/manifest oluşturulamadı:', err);
+        }
+      }
+
+      /* =========================================================
+         5. TOAST BİLDİRİM YARDIMCISI
+      ========================================================= */
+      function showToast(message, duration = 3000) {
+        if (toastTimeoutId) clearTimeout(toastTimeoutId);
+        toastEl.textContent = message;
+        toastEl.classList.remove('is-hidden');
+        toastEl.classList.add('is-visible');
+
+        toastTimeoutId = setTimeout(() => {
+          toastEl.classList.remove('is-visible');
+          toastEl.classList.add('is-hidden');
+        }, duration);
+      }
+
+      /* =========================================================
+         6. VERİ SAKLAMA (localStorage) & İLK ZİYARET ÖRNEK NOTLARI
+      ========================================================= */
+      function loadNotes() {
+        try {
+          const raw = localStorage.getItem(STORAGE_KEYS.NOTES);
+          const isInitialized = localStorage.getItem(STORAGE_KEYS.INIT);
+
+          if (!isInitialized && !raw) {
+            // İlk ziyaret: 3 adet yardımcı Türkçe post-it
+            notes = [
+              {
+                id: createId(),
+                text: 'Bana tıkla, ekranın ortasına geleyim! ✨',
+                color: '#FFF394',
+                x: -245,
+                y: -120,
+                rotation: -2.4,
+                z: 1,
+                createdAt: Date.now()
+              },
+              {
+                id: createId(),
+                text: 'İki parmakla veya +/- ile yakınlaştırıp uzaklaştırabilirsin.',
+                color: '#FFD1A9',
+                x: 20,
+                y: -145,
+                rotation: 2.1,
+                z: 2,
+                createdAt: Date.now() + 1
+              },
+              {
+                id: createId(),
+                text: 'İşin bitince Tamamlandı\'ya bas, panodan uçayım.',
+                color: '#C8F2D6',
+                x: -105,
+                y: 115,
+                rotation: -1.6,
+                z: 3,
+                createdAt: Date.now() + 2
+              }
+            ];
+            localStorage.setItem(STORAGE_KEYS.INIT, '1');
+            saveNotes();
+          } else if (raw) {
+            notes = JSON.parse(raw) || [];
+          } else {
+            notes = [];
+          }
+
+          highestZIndex = notes.reduce((max, n) => Math.max(max, n.z || 1), 10);
+        } catch (err) {
+          console.error('Notlar yüklenirken hata:', err);
+          notes = [];
+        }
+      }
+
+      function saveNotes() {
+        try {
+          localStorage.setItem(STORAGE_KEYS.NOTES, JSON.stringify(notes));
+        } catch (err) {
+          console.error('Notlar kaydedilemedi:', err);
+        }
+        updateNoteCounter();
+      }
+
+      function updateNoteCounter() {
+        const count = notes.length;
+        noteCountEl.textContent = count === 0 ? '0 not' : `${count} not`;
+      }
+
+      function createId() {
+        return 'n_' + Date.now().toString(36) + '_' + Math.random().toString(36).slice(2, 7);
+      }
+
+      function randomRotation() {
+        // -3.5deg ile +3.5deg arası doğal eğim
+        return Number(((Math.random() * 7) - 3.5).toFixed(2));
+      }
+
+      /* =========================================================
+         7. KAMERA (PAN & ZOOM) DÖNÜŞÜMÜ VE ANİMASYON
+      ========================================================= */
+      function applyCameraTransform() {
+        worldEl.style.transform = `translate3d(${camera.x}px, ${camera.y}px, 0) scale(${camera.scale})`;
+
+        // Noktalı ızgarayı kamera hareketi ve yakınlaştırmayla senkronize et
+        const spacing = DOT_BASE_SPACING * camera.scale;
+        viewportEl.style.backgroundSize = `${spacing}px ${spacing}px`;
+        viewportEl.style.backgroundPosition = `${camera.x}px ${camera.y}px`;
+      }
+
+      function cancelCameraAnimation() {
+        if (animFrameId) {
+          cancelAnimationFrame(animFrameId);
+          animFrameId = null;
+        }
+      }
+
+      function animateCameraTo(targetX, targetY, targetScale, duration = 420) {
+        cancelCameraAnimation();
+
+        const startX = camera.x;
+        const startY = camera.y;
+        const startScale = camera.scale;
+        const clampedScale = Math.max(MIN_SCALE, Math.min(MAX_SCALE, targetScale));
+        const startTime = performance.now();
+
+        function step(now) {
+          const elapsed = now - startTime;
+          const t = Math.min(1, elapsed / duration);
+          // Yumuşak cubic ease-out
+          const ease = 1 - Math.pow(1 - t, 3);
+
+          camera.x = startX + (targetX - startX) * ease;
+          camera.y = startY + (targetY - startY) * ease;
+          camera.scale = startScale + (clampedScale - startScale) * ease;
+
+          applyCameraTransform();
+
+          if (t < 1) {
+            animFrameId = requestAnimationFrame(step);
+          } else {
+            animFrameId = null;
+          }
+        }
+
+        animFrameId = requestAnimationFrame(step);
+      }
+
+      function zoomAtPoint(newScale, screenX, screenY, animate = false) {
+        const clamped = Math.max(MIN_SCALE, Math.min(MAX_SCALE, newScale));
+        // İmleç/merkez altındaki dünya koordinatını koru
+        const worldX = (screenX - camera.x) / camera.scale;
+        const worldY = (screenY - camera.y) / camera.scale;
+
+        const targetX = screenX - worldX * clamped;
+        const targetY = screenY - worldY * clamped;
+
+        if (animate) {
+          animateCameraTo(targetX, targetY, clamped, 240);
+        } else {
+          cancelCameraAnimation();
+          camera.scale = clamped;
+          camera.x = targetX;
+          camera.y = targetY;
+          applyCameraTransform();
+        }
+      }
+
+      function resetViewToFitNotes() {
+        unfocusNote();
+
+        if (notes.length === 0) {
+          animateCameraTo(window.innerWidth / 2, window.innerHeight / 2, 1.0, 420);
+          return;
+        }
+
+        // Tüm notların kapsayıcı kutusunu (bounding box) hesapla
+        let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+        notes.forEach((n) => {
+          minX = Math.min(minX, n.x);
+          minY = Math.min(minY, n.y);
+          maxX = Math.max(maxX, n.x + NOTE_SIZE);
+          maxY = Math.max(maxY, n.y + NOTE_SIZE);
+        });
+
+        const boxW = maxX - minX;
+        const boxH = maxY - minY;
+        const centerX = minX + boxW / 2;
+        const centerY = minY + boxH / 2;
+
+        const padding = window.innerWidth < 640 ? 90 : 140;
+        const availW = Math.max(200, window.innerWidth - padding);
+        const availH = Math.max(200, window.innerHeight - padding);
+
+        const fitScale = Math.min(availW / boxW, availH / boxH, 1.05);
+        const finalScale = Math.max(MIN_SCALE, Math.min(1.05, fitScale));
+
+        const targetX = window.innerWidth / 2 - centerX * finalScale;
+        const targetY = window.innerHeight / 2 - centerY * finalScale;
+
+        animateCameraTo(targetX, targetY, finalScale, 450);
+      }
+
+      /* =========================================================
+         8. POST-IT OLUŞTURMA, ODAKLAMA, DÜZENLEME VE SİLME
+      ========================================================= */
+      function findNonOverlappingPosition() {
+        // Mevcut ekran merkezinin dünya koordinatları
+        const centerWorldX = (window.innerWidth / 2 - camera.x) / camera.scale - NOTE_SIZE / 2;
+        const centerWorldY = (window.innerHeight / 2 - camera.y) / camera.scale - NOTE_SIZE / 2;
+
+        const minDistance = 175;
+        let candidateX = centerWorldX;
+        let candidateY = centerWorldY;
+
+        function isCrowded(cx, cy) {
+          return notes.some((n) => {
+            const dx = n.x - cx;
+            const dy = n.y - cy;
+            return Math.hypot(dx, dy) < minDistance;
+          });
+        }
+
+        if (!isCrowded(candidateX, candidateY)) {
+          return { x: Math.round(candidateX), y: Math.round(candidateY) };
+        }
+
+        // Çakışma varsa spiral şeklinde boş alan bul
+        for (let step = 1; step <= 48; step++) {
+          const angle = step * 0.85;
+          const radius = 55 + step * 28;
+          candidateX = centerWorldX + Math.cos(angle) * radius;
+          candidateY = centerWorldY + Math.sin(angle) * radius;
+          if (!isCrowded(candidateX, candidateY)) {
+            return { x: Math.round(candidateX), y: Math.round(candidateY) };
+          }
+        }
+
+        return {
+          x: Math.round(centerWorldX + (Math.random() * 80 - 40)),
+          y: Math.round(centerWorldY + (Math.random() * 80 - 40))
+        };
+      }
+
+      function renderAllNotes() {
+        worldEl.innerHTML = '';
+        notes.forEach((note) => {
+          const el = createNoteElement(note, false);
+          worldEl.appendChild(el);
+        });
+        updateNoteCounter();
+      }
+
+      function createNoteElement(note, animatePop = false) {
+        const el = document.createElement('article');
+        el.className = 'postit' + (animatePop ? ' is-popping' : '');
+        el.dataset.id = note.id;
+        el.style.left = `${note.x}px`;
+        el.style.top = `${note.y}px`;
+        el.style.backgroundColor = note.color;
+        el.style.zIndex = note.z || 1;
+        el.style.setProperty('--note-rot', `${note.rotation}deg`);
+        el.style.transform = `rotate(${note.rotation}deg)`;
+
+        // Metin alanı
+        const textDiv = document.createElement('div');
+        textDiv.className = 'postit-text';
+        textDiv.textContent = note.text;
+
+        // Odaklandığında görünen "✓ Tamamlandı" aksiyon çubuğu
+        const actionsDiv = document.createElement('div');
+        actionsDiv.className = 'postit-actions';
+
+        const completeBtn = document.createElement('button');
+        completeBtn.type = 'button';
+        completeBtn.className = 'btn-complete';
+        completeBtn.innerHTML = `
+          <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round">
+            <polyline points="20 6 9 17 4 12"></polyline>
+          </svg>
+          <span>Tamamlandı</span>
+        `;
+
+        completeBtn.addEventListener('pointerdown', (e) => {
+          e.stopPropagation();
+        });
+
+        completeBtn.addEventListener('click', (e) => {
+          e.stopPropagation();
+          completeAndDeleteNote(note.id, el);
+        });
+
+        actionsDiv.appendChild(completeBtn);
+        el.appendChild(textDiv);
+        el.appendChild(actionsDiv);
+
+        // Odaklı notta metne tıklayınca hızlı düzenleme
+        textDiv.addEventListener('click', (e) => {
+          if (focusedNoteId === note.id) {
+            e.stopPropagation();
+            enableInlineEdit(note, el, textDiv);
+          }
+        });
+
+        attachNoteDragAndTapHandlers(el, note);
+        return el;
+      }
+
+      function enableInlineEdit(note, noteEl, textDiv) {
+        if (noteEl.querySelector('.postit-edit-area')) return;
+
+        const textarea = document.createElement('textarea');
+        textarea.className = 'postit-edit-area';
+        textarea.value = note.text;
+        textarea.maxLength = 280;
+
+        textDiv.style.display = 'none';
+        noteEl.insertBefore(textarea, textDiv);
+        textarea.focus();
+        textarea.setSelectionRange(textarea.value.length, textarea.value.length);
+
+        const finishEdit = () => {
+          const updated = textarea.value.trim();
+          if (updated.length > 0) {
+            note.text = updated;
+            textDiv.textContent = updated;
+            saveNotes();
+          }
+          textarea.remove();
+          textDiv.style.display = '';
+        };
+
+        textarea.addEventListener('pointerdown', (e) => e.stopPropagation());
+        textarea.addEventListener('blur', finishEdit);
+        textarea.addEventListener('keydown', (e) => {
+          if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') {
+            textarea.blur();
+          }
+        });
+      }
+
+      function focusNote(noteId) {
+        const note = notes.find((n) => n.id === noteId);
+        if (!note) return;
+
+        // Önceki odaklanmış notu temizle
+        if (focusedNoteId && focusedNoteId !== noteId) {
+          const prevEl = worldEl.querySelector(`.postit[data-id="${focusedNoteId}"]`);
+          if (prevEl) prevEl.classList.remove('is-focused');
+        }
+
+        focusedNoteId = noteId;
+        highestZIndex += 1;
+        note.z = highestZIndex;
+        saveNotes();
+
+        const el = worldEl.querySelector(`.postit[data-id="${noteId}"]`);
+        if (el) {
+          el.style.zIndex = note.z;
+          el.classList.add('is-focused');
+        }
+
+        // Masaüstünde ~1.35x, mobilde ekran genişliğine rahat sığacak şekilde yakınlaştır
+        const targetScale = window.innerWidth < 640
+          ? Math.min(1.32, (window.innerWidth - 68) / NOTE_SIZE)
+          : 1.35;
+
+        const noteCenterX = note.x + NOTE_SIZE / 2;
+        const noteCenterY = note.y + NOTE_SIZE / 2;
+
+        const targetX = window.innerWidth / 2 - noteCenterX * targetScale;
+        const targetY = window.innerHeight / 2 - noteCenterY * targetScale;
+
+        animateCameraTo(targetX, targetY, targetScale, 420);
+      }
+
+      function unfocusNote() {
+        if (!focusedNoteId) return;
+        const el = worldEl.querySelector(`.postit[data-id="${focusedNoteId}"]`);
+        if (el) {
+          const activeEditor = el.querySelector('.postit-edit-area');
+          if (activeEditor) activeEditor.blur();
+          el.classList.remove('is-focused');
+        }
+        focusedNoteId = null;
+      }
+
+      function completeAndDeleteNote(noteId, noteEl) {
+        if (focusedNoteId === noteId) {
+          focusedNoteId = null;
+        }
+
+        noteEl.classList.remove('is-focused');
+        noteEl.classList.add('is-peeling');
+
+        // Veriyi anında güncelle
+        notes = notes.filter((n) => n.id !== noteId);
+        saveNotes();
+
+        setTimeout(() => {
+          noteEl.remove();
+        }, 420);
+
+        showToast('Tamamlandı! Panodan silindi.', 2200);
+      }
+
+      /* =========================================================
+         9. NOT SÜRÜKLEME & TIKLAMA AYRIMI (Mouse + Touch)
+      ========================================================= */
+      function attachNoteDragAndTapHandlers(el, note) {
+        let isPointerDown = false;
+        let hasDragged = false;
+        let startClientX = 0;
+        let startClientY = 0;
+        let startNoteX = 0;
+        let startNoteY = 0;
+        let activePointerId = null;
+
+        el.addEventListener('pointerdown', (e) => {
+          // Çoklu dokunma (pinch zoom) varsa pano ele alsın
+          if (activeTouches.size > 1) return;
+          // Düzenleme alanı veya Tamamlandı butonuna basıldıysa sürükleme başlatma
+          if (e.target.closest('.btn-complete') || e.target.closest('.postit-edit-area')) return;
+          if (e.button !== 0 && e.pointerType === 'mouse') return;
+
+          e.stopPropagation();
+          cancelCameraAnimation();
+
+          isPointerDown = true;
+          hasDragged = false;
+          activePointerId = e.pointerId;
+          startClientX = e.clientX;
+          startClientY = e.clientY;
+          startNoteX = note.x;
+          startNoteY = note.y;
+
+          el.setPointerCapture(e.pointerId);
+        });
+
+        el.addEventListener('pointermove', (e) => {
+          if (!isPointerDown || e.pointerId !== activePointerId) return;
+          if (activeTouches.size > 1) {
+            isPointerDown = false;
+            el.classList.remove('is-dragging');
+            return;
+          }
+
+          const dx = e.clientX - startClientX;
+          const dy = e.clientY - startClientY;
+
+          if (!hasDragged && Math.hypot(dx, dy) > 6) {
+            hasDragged = true;
+            el.classList.add('is-dragging');
+            highestZIndex += 1;
+            note.z = highestZIndex;
+            el.style.zIndex = note.z;
+          }
+
+          if (hasDragged) {
+            note.x = Math.round(startNoteX + dx / camera.scale);
+            note.y = Math.round(startNoteY + dy / camera.scale);
+            el.style.left = `${note.x}px`;
+            el.style.top = `${note.y}px`;
+          }
+        });
+
+        const endDrag = (e) => {
+          if (!isPointerDown || e.pointerId !== activePointerId) return;
+          isPointerDown = false;
+          el.classList.remove('is-dragging');
+
+          try {
+            if (el.hasPointerCapture(e.pointerId)) {
+              el.releasePointerCapture(e.pointerId);
+            }
+          } catch (_) {}
+
+          if (hasDragged) {
+            saveNotes();
+          } else {
+            // Tıklama / Dokunma -> Notu ekranın ortasına getir
+            if (focusedNoteId !== note.id) {
+              focusNote(note.id);
+            }
+          }
+        };
+
+        el.addEventListener('pointerup', endDrag);
+        el.addEventListener('pointercancel', endDrag);
+      }
+
+      /* =========================================================
+         10. PANO SÜRÜKLEME (PAN) VE YAKINLAŞTIRMA (WHEEL + PINCH)
+      ========================================================= */
+      let isPanning = false;
+      let panStartX = 0;
+      let panStartY = 0;
+      let panCameraStartX = 0;
+      let panCameraStartY = 0;
+      let panMoved = false;
+
+      // Dokunmatik çoklu parmak takibi (Pinch-to-zoom)
+      const activeTouches = new Map();
+      let initialPinchDist = 0;
+      let initialPinchScale = 1;
+      let lastPinchMidX = 0;
+      let lastPinchMidY = 0;
+
+      viewportEl.addEventListener('pointerdown', (e) => {
+        if (e.target !== viewportEl && e.target !== worldEl) return;
+        if (e.button !== 0 && e.pointerType === 'mouse') return;
+
+        cancelCameraAnimation();
+
+        if (e.pointerType === 'touch') {
+          activeTouches.set(e.pointerId, { x: e.clientX, y: e.clientY });
+          if (activeTouches.size === 2) {
+            isPanning = false;
+            viewportEl.classList.remove('is-panning');
+            startPinch();
+            return;
+          }
+        }
+
+        isPanning = true;
+        panMoved = false;
+        panStartX = e.clientX;
+        panStartY = e.clientY;
+        panCameraStartX = camera.x;
+        panCameraStartY = camera.y;
+        viewportEl.classList.add('is-panning');
+      });
+
+      window.addEventListener('pointermove', (e) => {
+        if (e.pointerType === 'touch' && activeTouches.has(e.pointerId)) {
+          activeTouches.set(e.pointerId, { x: e.clientX, y: e.clientY });
+          if (activeTouches.size === 2) {
+            handlePinchMove();
+            return;
+          }
+        }
+
+        if (!isPanning) return;
+
+        const dx = e.clientX - panStartX;
+        const dy = e.clientY - panStartY;
+
+        if (Math.hypot(dx, dy) > 4) {
+          panMoved = true;
+        }
+
+        camera.x = panCameraStartX + dx;
+        camera.y = panCameraStartY + dy;
+        applyCameraTransform();
+      });
+
+      const endPan = (e) => {
+        if (e.pointerType === 'touch') {
+          activeTouches.delete(e.pointerId);
+          if (activeTouches.size < 2) {
+            initialPinchDist = 0;
+          }
+        }
+
+        if (isPanning) {
+          isPanning = false;
+          viewportEl.classList.remove('is-panning');
+          // Boş panoya sadece tıklandıysa odaklı notu kapat
+          if (!panMoved) {
+            unfocusNote();
+          }
+        }
+      };
+
+      window.addEventListener('pointerup', endPan);
+      window.addEventListener('pointercancel', endPan);
+
+      // Dokunmatik pinch-to-zoom notların üzerinde başlasa bile yakala
+      viewportEl.addEventListener('touchstart', (e) => {
+        if (e.touches.length === 2) {
+          e.preventDefault();
+          cancelCameraAnimation();
+          isPanning = false;
+          const t1 = e.touches[0];
+          const t2 = e.touches[1];
+          initialPinchDist = Math.hypot(t2.clientX - t1.clientX, t2.clientY - t1.clientY);
+          initialPinchScale = camera.scale;
+          lastPinchMidX = (t1.clientX + t2.clientX) / 2;
+          lastPinchMidY = (t1.clientY + t2.clientY) / 2;
+        }
+      }, { passive: false });
+
+      viewportEl.addEventListener('touchmove', (e) => {
+        if (e.touches.length === 2 && initialPinchDist > 0) {
+          e.preventDefault();
+          const t1 = e.touches[0];
+          const t2 = e.touches[1];
+          const dist = Math.hypot(t2.clientX - t1.clientX, t2.clientY - t1.clientY);
+          const midX = (t1.clientX + t2.clientX) / 2;
+          const midY = (t1.clientY + t2.clientY) / 2;
+
+          // İki parmakla kaydırma
+          camera.x += (midX - lastPinchMidX);
+          camera.y += (midY - lastPinchMidY);
+          lastPinchMidX = midX;
+          lastPinchMidY = midY;
+
+          // İki parmakla ölçekleme
+          const newScale = initialPinchScale * (dist / initialPinchDist);
+          zoomAtPoint(newScale, midX, midY, false);
+        }
+      }, { passive: false });
+
+      viewportEl.addEventListener('touchend', (e) => {
+        if (e.touches.length < 2) {
+          initialPinchDist = 0;
+        }
+      });
+
+      function startPinch() {
+        const pts = Array.from(activeTouches.values());
+        initialPinchDist = Math.hypot(pts[1].x - pts[0].x, pts[1].y - pts[0].y);
+        initialPinchScale = camera.scale;
+        lastPinchMidX = (pts[0].x + pts[1].x) / 2;
+        lastPinchMidY = (pts[0].y + pts[1].y) / 2;
+      }
+
+      function handlePinchMove() {
+        if (initialPinchDist <= 0) return;
+        const pts = Array.from(activeTouches.values());
+        const dist = Math.hypot(pts[1].x - pts[0].x, pts[1].y - pts[0].y);
+        const midX = (pts[0].x + pts[1].x) / 2;
+        const midY = (pts[0].y + pts[1].y) / 2;
+
+        camera.x += (midX - lastPinchMidX);
+        camera.y += (midY - lastPinchMidY);
+        lastPinchMidX = midX;
+        lastPinchMidY = midY;
+
+        const newScale = initialPinchScale * (dist / initialPinchDist);
+        zoomAtPoint(newScale, midX, midY, false);
+      }
+
+      // Fare tekerleği ile yakınlaştırma/uzaklaştırma
+      viewportEl.addEventListener('wheel', (e) => {
+        e.preventDefault();
+        const zoomFactor = e.deltaY < 0 ? 1.1 : 0.9;
+        zoomAtPoint(camera.scale * zoomFactor, e.clientX, e.clientY, false);
+      }, { passive: false });
+
+      // Sağ alt Zoom butonları
+      btnZoomIn.addEventListener('click', () => {
+        zoomAtPoint(camera.scale * 1.25, window.innerWidth / 2, window.innerHeight / 2, true);
+      });
+
+      btnZoomOut.addEventListener('click', () => {
+        zoomAtPoint(camera.scale * 0.8, window.innerWidth / 2, window.innerHeight / 2, true);
+      });
+
+      btnResetView.addEventListener('click', resetViewToFitNotes);
+
+      /* =========================================================
+         11. YENİ NOT EKLEME MODALI & RENK PALETİ
+      ========================================================= */
+      function buildColorPicker() {
+        colorPickerEl.innerHTML = '';
+        POSTIT_COLORS.forEach((c) => {
+          const btn = document.createElement('button');
+          btn.type = 'button';
+          btn.className = 'color-swatch' + (c.hex === selectedColor ? ' is-selected' : '');
+          btn.style.backgroundColor = c.hex;
+          btn.title = c.name;
+          btn.setAttribute('aria-label', c.name);
+          btn.setAttribute('role', 'radio');
+          btn.setAttribute('aria-checked', String(c.hex === selectedColor));
+
+          btn.addEventListener('click', () => {
+            selectedColor = c.hex;
+            localStorage.setItem(STORAGE_KEYS.LAST_COLOR, selectedColor);
+            modalCard.style.backgroundColor = selectedColor;
+
+            colorPickerEl.querySelectorAll('.color-swatch').forEach((sw) => {
+              sw.classList.remove('is-selected');
+              sw.setAttribute('aria-checked', 'false');
+            });
+            btn.classList.add('is-selected');
+            btn.setAttribute('aria-checked', 'true');
+            newNoteInput.focus();
+          });
+
+          colorPickerEl.appendChild(btn);
+        });
+      }
+
+      function openAddModal() {
+        unfocusNote();
+        modalCard.style.backgroundColor = selectedColor;
+        newNoteInput.value = '';
+        addModal.classList.remove('hidden');
+        addModal.classList.add('flex');
+        setTimeout(() => newNoteInput.focus(), 60);
+      }
+
+      function closeAddModal() {
+        addModal.classList.add('hidden');
+        addModal.classList.remove('flex');
+      }
+
+      function handleSaveNewNote() {
+        const text = newNoteInput.value.trim();
+        if (!text) {
+          showToast('Önce aklına geleni yaz ✨', 2000);
+          newNoteInput.focus();
+          return;
+        }
+
+        const pos = findNonOverlappingPosition();
+        highestZIndex += 1;
+
+        const newNote = {
+          id: createId(),
+          text,
+          color: selectedColor,
+          x: pos.x,
+          y: pos.y,
+          rotation: randomRotation(),
+          z: highestZIndex,
+          createdAt: Date.now()
+        };
+
+        notes.push(newNote);
+        saveNotes();
+
+        const el = createNoteElement(newNote, true);
+        worldEl.appendChild(el);
+        closeAddModal();
+
+        // Yeni not ekranın dışına taştıysa yumuşakça ona kaydır
+        const screenX = newNote.x * camera.scale + camera.x;
+        const screenY = newNote.y * camera.scale + camera.y;
+        const margin = 40;
+        if (
+          screenX < margin ||
+          screenY < margin ||
+          screenX + NOTE_SIZE * camera.scale > window.innerWidth - margin ||
+          screenY + NOTE_SIZE * camera.scale > window.innerHeight - margin
+        ) {
+          const targetX = window.innerWidth / 2 - (newNote.x + NOTE_SIZE / 2) * camera.scale;
+          const targetY = window.innerHeight / 2 - (newNote.y + NOTE_SIZE / 2) * camera.scale;
+          animateCameraTo(targetX, targetY, camera.scale, 380);
+        }
+      }
+
+      btnAddNote.addEventListener('click', openAddModal);
+      btnCloseModal.addEventListener('click', closeAddModal);
+      btnSaveNote.addEventListener('click', handleSaveNewNote);
+
+      addModal.addEventListener('click', (e) => {
+        if (e.target === addModal) closeAddModal();
+      });
+
+      newNoteInput.addEventListener('keydown', (e) => {
+        if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') {
+          e.preventDefault();
+          handleSaveNewNote();
+        } else if (e.key === 'Escape') {
+          closeAddModal();
+        }
+      });
+
+      window.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape') {
+          if (!addModal.classList.contains('hidden')) {
+            closeAddModal();
+          } else {
+            unfocusNote();
+          }
+        }
+      });
+
+      /* =========================================================
+         12. SAATLİK BİLDİRİM SİSTEMİ (Saat başı :00 uyumlu)
+      ========================================================= */
+      function getCurrentHourKey(date = new Date()) {
+        const y = date.getFullYear();
+        const m = String(date.getMonth() + 1).padStart(2, '0');
+        const d = String(date.getDate()).padStart(2, '0');
+        const h = String(date.getHours()).padStart(2, '0');
+        return `${y}-${m}-${d}-${h}`;
+      }
+
+      function getNextHourLabel() {
+        const next = new Date();
+        next.setHours(next.getHours() + 1, 0, 0, 0);
+        return `${String(next.getHours()).padStart(2, '0')}:00`;
+      }
+
+      function updateBellUI() {
+        if (hourlyEnabled) {
+          bellDot.classList.remove('hidden');
+          btnBell.style.borderColor = 'rgba(255, 169, 122, 0.75)';
+          btnBell.style.color = '#26231F';
+          btnBell.setAttribute('aria-pressed', 'true');
+        } else {
+          bellDot.classList.add('hidden');
+          btnBell.style.borderColor = 'rgba(45, 38, 28, 0.08)';
+          btnBell.style.color = '#4A453F';
+          btnBell.setAttribute('aria-pressed', 'false');
+        }
+      }
+
+      function triggerHourlyReminder() {
+        const count = notes.length;
+        const title = 'Not Panom';
+        const body = count > 0
+          ? `Panonda ${count} not bekliyor. Bir göz atmak ister misin?`
+          : 'Aklına gelen bir şey var mı? Yeni bir not yapıştırabilirsin.';
+
+        // Uygulama içi toast her zaman gösterilir
+        showToast(body, 4500);
+
+        // Tarayıcı bildirimi izni varsa gönder
+        if ('Notification' in window && Notification.permission === 'granted') {
+          try {
+            new Notification(title, {
+              body,
+              icon: appIconDataUrl || undefined,
+              badge: appIconDataUrl || undefined,
+              tag: 'notpanom-hourly'
+            });
+          } catch (err) {
+            console.warn('Tarayıcı bildirimi gönderilemedi:', err);
+          }
+        }
+      }
+
+      function checkHourlyTrigger() {
+        if (!hourlyEnabled) return;
+
+        const now = new Date();
+        const currentKey = getCurrentHourKey(now);
+        const lastKey = localStorage.getItem(STORAGE_KEYS.LAST_NOTIFIED_HOUR);
+
+        // Yeni bir saate geçildiyse bildirimi tetikle
+        if (lastKey && lastKey !== currentKey) {
+          localStorage.setItem(STORAGE_KEYS.LAST_NOTIFIED_HOUR, currentKey);
+          triggerHourlyReminder();
+        } else if (!lastKey) {
+          localStorage.setItem(STORAGE_KEYS.LAST_NOTIFIED_HOUR, currentKey);
+        }
+      }
+
+      async function toggleHourlyNotifications() {
+        if (hourlyEnabled) {
+          hourlyEnabled = false;
+          localStorage.setItem(STORAGE_KEYS.HOURLY_ENABLED, 'false');
+          updateBellUI();
+          showToast('Saatlik bildirim kapatıldı', 2400);
+          return;
+        }
+
+        // Bildirim açılıyor
+        hourlyEnabled = true;
+        localStorage.setItem(STORAGE_KEYS.HOURLY_ENABLED, 'true');
+        // Bulunduğumuz saati işaretle ki bir sonraki saat başında (:00) çalsın
+        localStorage.setItem(STORAGE_KEYS.LAST_NOTIFIED_HOUR, getCurrentHourKey());
+        updateBellUI();
+
+        const nextLabel = getNextHourLabel();
+
+        if (!('Notification' in window)) {
+          showToast(`Uygulama içi hatırlatıcı açık · Sonraki: ${nextLabel}`, 3400);
+          return;
+        }
+
+        if (Notification.permission === 'granted') {
+          showToast(`Saatlik bildirim açıldı · Sonraki: ${nextLabel}`, 3400);
+        } else if (Notification.permission === 'denied') {
+          showToast(`Tarayıcı izni kapalı · Uygulama içi hatırlatıcı açık (${nextLabel})`, 3800);
+        } else {
+          try {
+            const permission = await Notification.requestPermission();
+            if (permission === 'granted') {
+              showToast(`Saatlik bildirim açıldı · Sonraki: ${nextLabel}`, 3400);
+            } else {
+              showToast(`İzin verilmedi · Uygulama içi hatırlatıcı açık (${nextLabel})`, 3600);
+            }
+          } catch (_) {
+            showToast(`Saatlik hatırlatıcı açık · Sonraki: ${nextLabel}`, 3400);
+          }
+        }
+      }
+
+      btnBell.addEventListener('click', toggleHourlyNotifications);
+
+      // Drift-safe saat başı kontrolü (her 30 saniyede bir + sekme görünür olunca)
+      setInterval(checkHourlyTrigger, 30000);
+      document.addEventListener('visibilitychange', () => {
+        if (document.visibilityState === 'visible') {
+          checkHourlyTrigger();
+        }
+      });
+
+      /* =========================================================
+         13. BAŞLATMA (INIT)
+      ========================================================= */
+      function init() {
+        setupPwaAssets();
+        buildColorPicker();
+        loadNotes();
+        renderAllNotes();
+        updateBellUI();
+
+        // Başlangıçta mevcut notları ekrana ortala
+        applyCameraTransform();
+        if (notes.length > 0) {
+          // İlk açılışta yumuşakça notları ortala
+          let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+          notes.forEach((n) => {
+            minX = Math.min(minX, n.x);
+            minY = Math.min(minY, n.y);
+            maxX = Math.max(maxX, n.x + NOTE_SIZE);
+            maxY = Math.max(maxY, n.y + NOTE_SIZE);
+          });
+          const centerX = (minX + maxX) / 2;
+          const centerY = (minY + maxY) / 2;
+          camera.x = window.innerWidth / 2 - centerX * camera.scale;
+          camera.y = window.innerHeight / 2 - centerY * camera.scale;
+          applyCameraTransform();
+        }
+      }
+
+      window.addEventListener('resize', () => {
+        applyCameraTransform();
+      });
+
+      init();
+    })();
+  </script>
+</body>
+</html>
