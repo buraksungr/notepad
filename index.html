@@ -123,28 +123,6 @@
       will-change: transform, left, top, width, height;
     }
 
-    /* Üst-Sağ Günlük Tekrar Rozeti (Örn: 1/3) */
-    .postit-habit-badge {
-      position: absolute;
-      top: 5px;
-      right: 8px;
-      padding: 2px 7px;
-      border-radius: 999px;
-      background: rgba(35, 32, 28, 0.12);
-      color: #23201C;
-      font-family: 'Inter', sans-serif;
-      font-size: 10.5px;
-      font-weight: 600;
-      letter-spacing: 0.01em;
-      pointer-events: none;
-      transition: transform 0.2s cubic-bezier(0.22, 1, 0.36, 1), background-color 0.2s ease;
-    }
-
-    .postit-habit-badge.is-bumped {
-      transform: scale(1.2);
-      background: rgba(35, 32, 28, 0.24);
-    }
-
     /* Sağ Alt Köşe Boyutlandırma Tutamacı */
     .postit-resize-handle {
       position: absolute;
@@ -772,11 +750,10 @@
           class="modal-textarea w-full bg-transparent border-none outline-none resize-none placeholder-[#23201C]/40"
         ></textarea>
 
-        <!-- Yazı Boyutu ve Günlük Tekrar Sayısı -->
+        <!-- Yazı Boyutu Kontrolü -->
         <div class="pt-2.5 border-t border-black/10 flex items-center justify-between gap-2 text-[#23201C]">
-          <!-- Font Boyutu Kontrolü -->
+          <span class="text-xs font-medium opacity-75">Yazı Boyutu</span>
           <div class="flex items-center gap-1 bg-black/[0.06] rounded-full px-2 py-1">
-            <span class="text-[11px] font-medium opacity-75 pl-1 pr-0.5">Yazı</span>
             <button
               id="btn-font-dec"
               type="button"
@@ -797,33 +774,6 @@
               id="btn-font-inc"
               type="button"
               aria-label="Yazı boyutunu büyüt"
-              class="w-6 h-6 rounded-full flex items-center justify-center hover:bg-black/10 active:scale-95 text-sm font-semibold transition"
-            >+</button>
-          </div>
-
-          <!-- Günlük Tekrar Kontrolü (Alışkanlık Sayacı) -->
-          <div class="flex items-center gap-1 bg-black/[0.06] rounded-full px-2 py-1">
-            <span class="text-[11px] font-medium opacity-75 pl-1 pr-0.5">Günde</span>
-            <button
-              id="btn-repeat-dec"
-              type="button"
-              aria-label="Tekrar sayısını azalt"
-              class="w-6 h-6 rounded-full flex items-center justify-center hover:bg-black/10 active:scale-95 text-sm font-semibold transition"
-            >−</button>
-            <input
-              id="new-note-repeat"
-              type="number"
-              min="1"
-              max="20"
-              value="1"
-              aria-label="Günde kaç kez"
-              class="no-spinner w-6 text-center bg-transparent border-none outline-none text-xs font-semibold tabular-nums"
-            />
-            <span class="text-[10px] opacity-60 -ml-1 mr-0.5">kez</span>
-            <button
-              id="btn-repeat-inc"
-              type="button"
-              aria-label="Tekrar sayısını artır"
               class="w-6 h-6 rounded-full flex items-center justify-center hover:bg-black/10 active:scale-95 text-sm font-semibold transition"
             >+</button>
           </div>
@@ -869,7 +819,6 @@
       const MIN_FONT_SIZE = 12;
       const MAX_FONT_SIZE = 42;
       const DEFAULT_FONT_SIZE = 16;
-      const MAX_REPEAT_COUNT = 20;
       const MAX_SCALE = 2.2;
       const DOT_BASE_SPACING = 26;
 
@@ -943,9 +892,6 @@
       const newNoteFontSizeInput = document.getElementById('new-note-fontsize');
       const btnFontDec = document.getElementById('btn-font-dec');
       const btnFontInc = document.getElementById('btn-font-inc');
-      const newNoteRepeatInput = document.getElementById('new-note-repeat');
-      const btnRepeatDec = document.getElementById('btn-repeat-dec');
-      const btnRepeatInc = document.getElementById('btn-repeat-inc');
       const colorPickerEl = document.getElementById('color-picker');
       const btnSaveNote = document.getElementById('btn-save-note');
 
@@ -1124,8 +1070,6 @@
             n.width = dims.w;
             n.height = dims.h;
             n.fontSize = clampNumber(n.fontSize || DEFAULT_FONT_SIZE, MIN_FONT_SIZE, MAX_FONT_SIZE);
-            n.targetCount = clampNumber(parseInt(n.targetCount, 10) || 1, 1, MAX_REPEAT_COUNT);
-            n.doneCount = clampNumber(parseInt(n.doneCount, 10) || 0, 0, n.targetCount - 1);
 
             const safeX = Number.isFinite(n.x) ? n.x : -dims.w / 2;
             const safeY = Number.isFinite(n.y) ? n.y : -dims.h / 2;
@@ -1388,13 +1332,9 @@
       function createNoteElement(note, animatePop = false) {
         const dims = getNoteDims(note);
         const fontSize = clampNumber(note.fontSize || DEFAULT_FONT_SIZE, MIN_FONT_SIZE, MAX_FONT_SIZE);
-        const targetCount = clampNumber(parseInt(note.targetCount, 10) || 1, 1, MAX_REPEAT_COUNT);
-        const doneCount = clampNumber(parseInt(note.doneCount, 10) || 0, 0, targetCount - 1);
         note.width = dims.w;
         note.height = dims.h;
         note.fontSize = fontSize;
-        note.targetCount = targetCount;
-        note.doneCount = doneCount;
 
         const el = document.createElement('article');
         el.className = 'postit' + (animatePop ? ' is-popping' : '');
@@ -1408,22 +1348,13 @@
         el.style.setProperty('--note-rot', `${note.rotation}deg`);
         el.style.transform = `rotate(${note.rotation}deg)`;
 
-        // Birden fazla tekrarlı alışkanlıklar için üst-sağ sayaç rozeti (örn. 0/3)
-        let habitBadge = null;
-        if (targetCount > 1) {
-          habitBadge = document.createElement('span');
-          habitBadge.className = 'postit-habit-badge';
-          habitBadge.textContent = `${doneCount}/${targetCount}`;
-          el.appendChild(habitBadge);
-        }
-
         // Not Metni
         const textDiv = document.createElement('div');
         textDiv.className = 'postit-text';
         textDiv.style.fontSize = `${fontSize}px`;
         textDiv.textContent = note.text;
 
-        // Alt Aksiyon Çubuğu (Odaklanınca Font Boyutu + Tamamlandı/Sayaç Butonu)
+        // Alt Aksiyon Çubuğu (Odaklanınca Font Boyutu + Tamamlandı Butonu)
         const actionsDiv = document.createElement('div');
         actionsDiv.className = 'postit-actions';
 
@@ -1475,40 +1406,16 @@
         const completeBtn = document.createElement('button');
         completeBtn.type = 'button';
         completeBtn.className = 'btn-complete';
-
-        const refreshCompleteBtnLabel = () => {
-          const label = note.targetCount > 1
-            ? (note.doneCount + 1 >= note.targetCount ? `Tamamla (${note.doneCount}/${note.targetCount})` : `+1 (${note.doneCount}/${note.targetCount})`)
-            : 'Tamamlandı';
-          completeBtn.innerHTML = `
-            <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round">
-              <polyline points="20 6 9 17 4 12"></polyline>
-            </svg>
-            <span>${label}</span>
-          `;
-        };
-        refreshCompleteBtnLabel();
+        completeBtn.innerHTML = `
+          <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round">
+            <polyline points="20 6 9 17 4 12"></polyline>
+          </svg>
+          <span>Tamamlandı</span>
+        `;
 
         completeBtn.addEventListener('pointerdown', (e) => e.stopPropagation());
         completeBtn.addEventListener('click', (e) => {
           e.stopPropagation();
-          if (note.targetCount > 1) {
-            note.doneCount = (note.doneCount || 0) + 1;
-            if (note.doneCount < note.targetCount) {
-              saveNotes();
-              if (habitBadge) {
-                habitBadge.textContent = `${note.doneCount}/${note.targetCount}`;
-                habitBadge.classList.add('is-bumped');
-                setTimeout(() => habitBadge.classList.remove('is-bumped'), 220);
-              }
-              refreshCompleteBtnLabel();
-              const remaining = note.targetCount - note.doneCount;
-              showToast(`${note.doneCount}/${note.targetCount} yapıldı · Kalan: ${remaining}`, 2000);
-              return;
-            }
-            completeAndDeleteNote(note.id, el, `${note.targetCount}/${note.targetCount} Tamamlandı! Not panodan silindi.`);
-            return;
-          }
           completeAndDeleteNote(note.id, el);
         });
 
@@ -2016,11 +1923,6 @@
         newNoteInput.style.fontSize = `${clamped}px`;
       }
 
-      function syncModalRepeatCount(val) {
-        const clamped = clampNumber(parseInt(val, 10) || 1, 1, MAX_REPEAT_COUNT);
-        newNoteRepeatInput.value = String(clamped);
-      }
-
       btnFontDec.addEventListener('click', () => syncModalFontSize(selectedFontSize - 2));
       btnFontInc.addEventListener('click', () => syncModalFontSize(selectedFontSize + 2));
       newNoteFontSizeInput.addEventListener('input', () => {
@@ -2033,20 +1935,11 @@
       });
       newNoteFontSizeInput.addEventListener('blur', () => syncModalFontSize(newNoteFontSizeInput.value));
 
-      btnRepeatDec.addEventListener('click', () => {
-        syncModalRepeatCount((parseInt(newNoteRepeatInput.value, 10) || 1) - 1);
-      });
-      btnRepeatInc.addEventListener('click', () => {
-        syncModalRepeatCount((parseInt(newNoteRepeatInput.value, 10) || 1) + 1);
-      });
-      newNoteRepeatInput.addEventListener('blur', () => syncModalRepeatCount(newNoteRepeatInput.value));
-
       function openAddModal() {
         unfocusNote();
         modalCard.style.backgroundColor = selectedColor;
         newNoteInput.value = '';
         syncModalFontSize(selectedFontSize);
-        syncModalRepeatCount(1);
         addModal.classList.remove('hidden');
         addModal.classList.add('flex');
         setTimeout(() => newNoteInput.focus(), 60);
@@ -2066,7 +1959,6 @@
         }
 
         const fontSize = clampNumber(parseInt(newNoteFontSizeInput.value, 10) || selectedFontSize, MIN_FONT_SIZE, MAX_FONT_SIZE);
-        const targetCount = clampNumber(parseInt(newNoteRepeatInput.value, 10) || 1, 1, MAX_REPEAT_COUNT);
         const pos = findNonOverlappingPosition();
         highestZIndex += 1;
 
@@ -2079,8 +1971,6 @@
           width: NOTE_SIZE,
           height: NOTE_SIZE,
           fontSize,
-          targetCount,
-          doneCount: 0,
           rotation: randomRotation(),
           z: highestZIndex,
           createdAt: Date.now()
