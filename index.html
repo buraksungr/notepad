@@ -95,6 +95,8 @@
       position: absolute;
       width: 220px;
       height: 220px;
+      min-width: 160px;
+      min-height: 160px;
       border-radius: 2px 2px 4px 2px;
       padding: 30px 18px 14px 18px;
       display: flex;
@@ -118,7 +120,106 @@
         0 2px 4px rgba(45, 38, 28, 0.07),
         0 6px 14px rgba(45, 38, 28, 0.06),
         inset 0 1px 0 rgba(255, 255, 255, 0.5);
-      will-change: transform, left, top;
+      will-change: transform, left, top, width, height;
+    }
+
+    /* Üst-Sağ Günlük Tekrar Rozeti (Örn: 1/3) */
+    .postit-habit-badge {
+      position: absolute;
+      top: 5px;
+      right: 8px;
+      padding: 2px 7px;
+      border-radius: 999px;
+      background: rgba(35, 32, 28, 0.12);
+      color: #23201C;
+      font-family: 'Inter', sans-serif;
+      font-size: 10.5px;
+      font-weight: 600;
+      letter-spacing: 0.01em;
+      pointer-events: none;
+      transition: transform 0.2s cubic-bezier(0.22, 1, 0.36, 1), background-color 0.2s ease;
+    }
+
+    .postit-habit-badge.is-bumped {
+      transform: scale(1.2);
+      background: rgba(35, 32, 28, 0.24);
+    }
+
+    /* Sağ Alt Köşe Boyutlandırma Tutamacı */
+    .postit-resize-handle {
+      position: absolute;
+      right: 0;
+      bottom: 0;
+      width: 28px;
+      height: 28px;
+      cursor: nwse-resize;
+      touch-action: none;
+      display: flex;
+      align-items: flex-end;
+      justify-content: flex-end;
+      padding: 5px;
+      color: rgba(35, 32, 28, 0.34);
+      transition: color 0.15s ease, transform 0.15s ease;
+      z-index: 4;
+    }
+
+    .postit:hover .postit-resize-handle,
+    .postit.is-focused .postit-resize-handle,
+    .postit.is-resizing .postit-resize-handle {
+      color: rgba(35, 32, 28, 0.72);
+    }
+
+    .postit.is-resizing {
+      cursor: nwse-resize;
+      box-shadow:
+        0 14px 30px rgba(45, 38, 28, 0.16),
+        0 6px 14px rgba(45, 38, 28, 0.1);
+    }
+
+    /* Odaklı Notta Inline Font Boyutu Kontrolü */
+    .postit-font-controls {
+      display: none;
+      align-items: center;
+      gap: 2px;
+      background: rgba(35, 32, 28, 0.09);
+      border-radius: 999px;
+      padding: 2px 4px;
+    }
+
+    .postit.is-focused .postit-font-controls {
+      display: inline-flex;
+    }
+
+    .postit-font-btn {
+      width: 20px;
+      height: 20px;
+      border-radius: 999px;
+      border: none;
+      background: transparent;
+      color: #23201C;
+      font-family: 'Inter', sans-serif;
+      font-size: 12px;
+      font-weight: 600;
+      line-height: 1;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      transition: background-color 0.15s ease;
+    }
+
+    .postit-font-btn:hover {
+      background: rgba(35, 32, 28, 0.12);
+    }
+
+    .postit-font-val {
+      font-family: 'Inter', sans-serif;
+      font-size: 10.5px;
+      font-weight: 600;
+      color: #23201C;
+      min-width: 18px;
+      text-align: center;
+      font-variant-numeric: tabular-nums;
     }
 
     /* Alt-sağ köşe kıvrık kağıt gölgesi */
@@ -244,10 +345,12 @@
     /* Her Notun Altındaki Tamamlandı Butonu */
     .postit-actions {
       margin-top: 8px;
+      padding-right: 18px;
       display: flex;
       align-items: center;
-      justify-content: flex-end;
-      opacity: 0.55;
+      justify-content: space-between;
+      gap: 6px;
+      opacity: 0.6;
       transition: opacity 0.2s ease, transform 0.2s ease;
     }
 
@@ -257,6 +360,7 @@
     }
 
     .btn-complete {
+      margin-left: auto;
       display: inline-flex;
       align-items: center;
       gap: 4px;
@@ -371,6 +475,16 @@
       line-height: 1.45;
       letter-spacing: 0;
       color: #22201d;
+    }
+
+    /* Modal Sayısal Giriş Oklarını Gizle */
+    .no-spinner::-webkit-inner-spin-button,
+    .no-spinner::-webkit-outer-spin-button {
+      -webkit-appearance: none;
+      margin: 0;
+    }
+    .no-spinner {
+      -moz-appearance: textfield;
     }
 
     /* 16 Renklik Seçici Daireler */
@@ -653,10 +767,67 @@
         <textarea
           id="new-note-input"
           rows="5"
-          maxlength="280"
+          maxlength="400"
           placeholder="Aklına ne geldi?"
           class="modal-textarea w-full bg-transparent border-none outline-none resize-none placeholder-[#23201C]/40"
         ></textarea>
+
+        <!-- Yazı Boyutu ve Günlük Tekrar Sayısı -->
+        <div class="pt-2.5 border-t border-black/10 flex items-center justify-between gap-2 text-[#23201C]">
+          <!-- Font Boyutu Kontrolü -->
+          <div class="flex items-center gap-1 bg-black/[0.06] rounded-full px-2 py-1">
+            <span class="text-[11px] font-medium opacity-75 pl-1 pr-0.5">Yazı</span>
+            <button
+              id="btn-font-dec"
+              type="button"
+              aria-label="Yazı boyutunu küçült"
+              class="w-6 h-6 rounded-full flex items-center justify-center hover:bg-black/10 active:scale-95 text-sm font-semibold transition"
+            >−</button>
+            <input
+              id="new-note-fontsize"
+              type="number"
+              min="12"
+              max="42"
+              value="16"
+              aria-label="Yazı boyutu (piksel)"
+              class="no-spinner w-7 text-center bg-transparent border-none outline-none text-xs font-semibold tabular-nums"
+            />
+            <span class="text-[10px] opacity-60 -ml-1 mr-0.5">px</span>
+            <button
+              id="btn-font-inc"
+              type="button"
+              aria-label="Yazı boyutunu büyüt"
+              class="w-6 h-6 rounded-full flex items-center justify-center hover:bg-black/10 active:scale-95 text-sm font-semibold transition"
+            >+</button>
+          </div>
+
+          <!-- Günlük Tekrar Kontrolü (Alışkanlık Sayacı) -->
+          <div class="flex items-center gap-1 bg-black/[0.06] rounded-full px-2 py-1">
+            <span class="text-[11px] font-medium opacity-75 pl-1 pr-0.5">Günde</span>
+            <button
+              id="btn-repeat-dec"
+              type="button"
+              aria-label="Tekrar sayısını azalt"
+              class="w-6 h-6 rounded-full flex items-center justify-center hover:bg-black/10 active:scale-95 text-sm font-semibold transition"
+            >−</button>
+            <input
+              id="new-note-repeat"
+              type="number"
+              min="1"
+              max="20"
+              value="1"
+              aria-label="Günde kaç kez"
+              class="no-spinner w-6 text-center bg-transparent border-none outline-none text-xs font-semibold tabular-nums"
+            />
+            <span class="text-[10px] opacity-60 -ml-1 mr-0.5">kez</span>
+            <button
+              id="btn-repeat-inc"
+              type="button"
+              aria-label="Tekrar sayısını artır"
+              class="w-6 h-6 rounded-full flex items-center justify-center hover:bg-black/10 active:scale-95 text-sm font-semibold transition"
+            >+</button>
+          </div>
+        </div>
 
         <!-- 16 Kağıt Rengi Seçicisi (8x2 Düzenli Grid) -->
         <div class="pt-3 border-t border-black/10 flex flex-col gap-3.5">
@@ -688,10 +859,17 @@
         HOURLY_ENABLED: 'notpanom_hourly_enabled_v2',
         LAST_NOTIFIED_HOUR: 'notpanom_last_notified_hour_v2',
         LAST_COLOR: 'notpanom_last_color_v2',
+        LAST_FONT_SIZE: 'notepad_last_font_size_v1',
         DARK_MODE: 'notepad_dark_mode_v1'
       };
 
       const NOTE_SIZE = 220;
+      const MIN_NOTE_SIZE = 160;
+      const MAX_NOTE_SIZE = 520;
+      const MIN_FONT_SIZE = 12;
+      const MAX_FONT_SIZE = 42;
+      const DEFAULT_FONT_SIZE = 16;
+      const MAX_REPEAT_COUNT = 20;
       const MAX_SCALE = 2.2;
       const DOT_BASE_SPACING = 26;
 
@@ -719,6 +897,11 @@
       ========================================================= */
       let notes = [];
       let selectedColor = localStorage.getItem(STORAGE_KEYS.LAST_COLOR) || POSTIT_COLORS[0].hex;
+      let selectedFontSize = clampNumber(
+        parseInt(localStorage.getItem(STORAGE_KEYS.LAST_FONT_SIZE), 10) || DEFAULT_FONT_SIZE,
+        MIN_FONT_SIZE,
+        MAX_FONT_SIZE
+      );
       let focusedNoteId = null;
       let highestZIndex = 10;
 
@@ -757,6 +940,12 @@
       const modalCard = document.getElementById('modal-card');
       const btnCloseModal = document.getElementById('btn-close-modal');
       const newNoteInput = document.getElementById('new-note-input');
+      const newNoteFontSizeInput = document.getElementById('new-note-fontsize');
+      const btnFontDec = document.getElementById('btn-font-dec');
+      const btnFontInc = document.getElementById('btn-font-inc');
+      const newNoteRepeatInput = document.getElementById('new-note-repeat');
+      const btnRepeatDec = document.getElementById('btn-repeat-dec');
+      const btnRepeatInc = document.getElementById('btn-repeat-inc');
       const colorPickerEl = document.getElementById('color-picker');
       const btnSaveNote = document.getElementById('btn-save-note');
 
@@ -845,8 +1034,20 @@
       btnTheme.addEventListener('click', toggleTheme);
 
       /* =========================================================
-         5. YARDIMCI FONKSİYONLAR (ID, EĞİM, TOAST)
+         5. YARDIMCI FONKSİYONLAR (ID, EĞİM, TOAST, ÖLÇÜ)
       ========================================================= */
+      function clampNumber(val, min, max) {
+        if (!Number.isFinite(val)) return min;
+        return Math.max(min, Math.min(max, val));
+      }
+
+      function getNoteDims(note) {
+        return {
+          w: clampNumber(note && note.width ? note.width : NOTE_SIZE, MIN_NOTE_SIZE, MAX_NOTE_SIZE),
+          h: clampNumber(note && note.height ? note.height : NOTE_SIZE, MIN_NOTE_SIZE, MAX_NOTE_SIZE)
+        };
+      }
+
       function createId() {
         return 'n_' + Date.now().toString(36) + '_' + Math.random().toString(36).slice(2, 7);
       }
@@ -919,9 +1120,16 @@
           // Önceden çok uzağa bırakılmış veya geçersiz konumlu notları kompakt pano içine topla
           let needsClampSave = false;
           notes.forEach((n) => {
-            const safeX = Number.isFinite(n.x) ? n.x : -NOTE_SIZE / 2;
-            const safeY = Number.isFinite(n.y) ? n.y : -NOTE_SIZE / 2;
-            const clamped = clampNoteCoords(safeX, safeY);
+            const dims = getNoteDims(n);
+            n.width = dims.w;
+            n.height = dims.h;
+            n.fontSize = clampNumber(n.fontSize || DEFAULT_FONT_SIZE, MIN_FONT_SIZE, MAX_FONT_SIZE);
+            n.targetCount = clampNumber(parseInt(n.targetCount, 10) || 1, 1, MAX_REPEAT_COUNT);
+            n.doneCount = clampNumber(parseInt(n.doneCount, 10) || 0, 0, n.targetCount - 1);
+
+            const safeX = Number.isFinite(n.x) ? n.x : -dims.w / 2;
+            const safeY = Number.isFinite(n.y) ? n.y : -dims.h / 2;
+            const clamped = clampNoteCoords(safeX, safeY, dims.w, dims.h);
             if (clamped.x !== n.x || clamped.y !== n.y) {
               n.x = clamped.x;
               n.y = clamped.y;
@@ -1085,10 +1293,11 @@
 
         let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
         notes.forEach((n) => {
+          const dims = getNoteDims(n);
           minX = Math.min(minX, n.x);
           minY = Math.min(minY, n.y);
-          maxX = Math.max(maxX, n.x + NOTE_SIZE);
-          maxY = Math.max(maxY, n.y + NOTE_SIZE);
+          maxX = Math.max(maxX, n.x + dims.w);
+          maxY = Math.max(maxY, n.y + dims.h);
         });
 
         const boxW = Math.max(NOTE_SIZE, maxX - minX);
@@ -1123,11 +1332,16 @@
       /* =========================================================
          8. POST-IT OLUŞTURMA, ODAKLAMA, DÜZENLEME VE SİLME
       ========================================================= */
-      function clampNoteCoords(x, y) {
+      function clampNoteCoords(x, y, w = NOTE_SIZE, h = NOTE_SIZE) {
         const m = getBoardMetrics();
+        const pad = 72;
+        const minX = m.minX + pad;
+        const maxX = Math.max(minX, m.maxX - pad - w);
+        const minY = m.minY + pad;
+        const maxY = Math.max(minY, m.maxY - pad - h);
         return {
-          x: Math.max(m.noteMinX, Math.min(m.noteMaxX, Math.round(x))),
-          y: Math.max(m.noteMinY, Math.min(m.noteMaxY, Math.round(y)))
+          x: Math.max(minX, Math.min(maxX, Math.round(x))),
+          y: Math.max(minY, Math.min(maxY, Math.round(y)))
         };
       }
 
@@ -1172,44 +1386,151 @@
       }
 
       function createNoteElement(note, animatePop = false) {
+        const dims = getNoteDims(note);
+        const fontSize = clampNumber(note.fontSize || DEFAULT_FONT_SIZE, MIN_FONT_SIZE, MAX_FONT_SIZE);
+        const targetCount = clampNumber(parseInt(note.targetCount, 10) || 1, 1, MAX_REPEAT_COUNT);
+        const doneCount = clampNumber(parseInt(note.doneCount, 10) || 0, 0, targetCount - 1);
+        note.width = dims.w;
+        note.height = dims.h;
+        note.fontSize = fontSize;
+        note.targetCount = targetCount;
+        note.doneCount = doneCount;
+
         const el = document.createElement('article');
         el.className = 'postit' + (animatePop ? ' is-popping' : '');
         el.dataset.id = note.id;
         el.style.left = `${note.x}px`;
         el.style.top = `${note.y}px`;
+        el.style.width = `${dims.w}px`;
+        el.style.height = `${dims.h}px`;
         el.style.backgroundColor = note.color;
         el.style.zIndex = note.z || 1;
         el.style.setProperty('--note-rot', `${note.rotation}deg`);
         el.style.transform = `rotate(${note.rotation}deg)`;
 
+        // Birden fazla tekrarlı alışkanlıklar için üst-sağ sayaç rozeti (örn. 0/3)
+        let habitBadge = null;
+        if (targetCount > 1) {
+          habitBadge = document.createElement('span');
+          habitBadge.className = 'postit-habit-badge';
+          habitBadge.textContent = `${doneCount}/${targetCount}`;
+          el.appendChild(habitBadge);
+        }
+
         // Not Metni
         const textDiv = document.createElement('div');
         textDiv.className = 'postit-text';
+        textDiv.style.fontSize = `${fontSize}px`;
         textDiv.textContent = note.text;
 
-        // Tamamlandı Aksiyon Butonu
+        // Alt Aksiyon Çubuğu (Odaklanınca Font Boyutu + Tamamlandı/Sayaç Butonu)
         const actionsDiv = document.createElement('div');
         actionsDiv.className = 'postit-actions';
+
+        // Odaklı notta hızlı font boyutu kontrolü
+        const fontControls = document.createElement('div');
+        fontControls.className = 'postit-font-controls';
+
+        const fontDecBtn = document.createElement('button');
+        fontDecBtn.type = 'button';
+        fontDecBtn.className = 'postit-font-btn';
+        fontDecBtn.textContent = '−';
+        fontDecBtn.title = 'Yazıyı küçült';
+        fontDecBtn.setAttribute('aria-label', 'Yazıyı küçült');
+
+        const fontValSpan = document.createElement('span');
+        fontValSpan.className = 'postit-font-val';
+        fontValSpan.textContent = String(fontSize);
+
+        const fontIncBtn = document.createElement('button');
+        fontIncBtn.type = 'button';
+        fontIncBtn.className = 'postit-font-btn';
+        fontIncBtn.textContent = '+';
+        fontIncBtn.title = 'Yazıyı büyüt';
+        fontIncBtn.setAttribute('aria-label', 'Yazıyı büyüt');
+
+        const updateNoteFont = (delta) => {
+          note.fontSize = clampNumber((note.fontSize || DEFAULT_FONT_SIZE) + delta, MIN_FONT_SIZE, MAX_FONT_SIZE);
+          textDiv.style.fontSize = `${note.fontSize}px`;
+          const activeEdit = el.querySelector('.postit-edit-area');
+          if (activeEdit) activeEdit.style.fontSize = `${note.fontSize}px`;
+          fontValSpan.textContent = String(note.fontSize);
+          saveNotes();
+        };
+
+        fontControls.addEventListener('pointerdown', (e) => e.stopPropagation());
+        fontDecBtn.addEventListener('click', (e) => {
+          e.stopPropagation();
+          updateNoteFont(-2);
+        });
+        fontIncBtn.addEventListener('click', (e) => {
+          e.stopPropagation();
+          updateNoteFont(2);
+        });
+
+        fontControls.appendChild(fontDecBtn);
+        fontControls.appendChild(fontValSpan);
+        fontControls.appendChild(fontIncBtn);
 
         const completeBtn = document.createElement('button');
         completeBtn.type = 'button';
         completeBtn.className = 'btn-complete';
-        completeBtn.innerHTML = `
-          <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round">
-            <polyline points="20 6 9 17 4 12"></polyline>
-          </svg>
-          <span>Tamamlandı</span>
-        `;
+
+        const refreshCompleteBtnLabel = () => {
+          const label = note.targetCount > 1
+            ? (note.doneCount + 1 >= note.targetCount ? `Tamamla (${note.doneCount}/${note.targetCount})` : `+1 (${note.doneCount}/${note.targetCount})`)
+            : 'Tamamlandı';
+          completeBtn.innerHTML = `
+            <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round">
+              <polyline points="20 6 9 17 4 12"></polyline>
+            </svg>
+            <span>${label}</span>
+          `;
+        };
+        refreshCompleteBtnLabel();
 
         completeBtn.addEventListener('pointerdown', (e) => e.stopPropagation());
         completeBtn.addEventListener('click', (e) => {
           e.stopPropagation();
+          if (note.targetCount > 1) {
+            note.doneCount = (note.doneCount || 0) + 1;
+            if (note.doneCount < note.targetCount) {
+              saveNotes();
+              if (habitBadge) {
+                habitBadge.textContent = `${note.doneCount}/${note.targetCount}`;
+                habitBadge.classList.add('is-bumped');
+                setTimeout(() => habitBadge.classList.remove('is-bumped'), 220);
+              }
+              refreshCompleteBtnLabel();
+              const remaining = note.targetCount - note.doneCount;
+              showToast(`${note.doneCount}/${note.targetCount} yapıldı · Kalan: ${remaining}`, 2000);
+              return;
+            }
+            completeAndDeleteNote(note.id, el, `${note.targetCount}/${note.targetCount} Tamamlandı! Not panodan silindi.`);
+            return;
+          }
           completeAndDeleteNote(note.id, el);
         });
 
+        actionsDiv.appendChild(fontControls);
         actionsDiv.appendChild(completeBtn);
+
+        // Sağ Alt Köşe Boyutlandırma Tutamacı
+        const resizeHandle = document.createElement('div');
+        resizeHandle.className = 'postit-resize-handle';
+        resizeHandle.title = 'Köşeden çekerek boyutlandır';
+        resizeHandle.setAttribute('aria-label', 'Kağıdı boyutlandır');
+        resizeHandle.innerHTML = `
+          <svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round">
+            <line x1="11" y1="4" x2="4" y2="11" />
+            <line x1="11" y1="8.2" x2="8.2" y2="11" />
+          </svg>
+        `;
+        attachNoteResizeHandler(resizeHandle, el, note);
+
         el.appendChild(textDiv);
         el.appendChild(actionsDiv);
+        el.appendChild(resizeHandle);
 
         // Odaklı notun metnine tıklandığında doğrudan düzenleme
         textDiv.addEventListener('click', (e) => {
@@ -1223,13 +1544,81 @@
         return el;
       }
 
+      function attachNoteResizeHandler(handle, el, note) {
+        let isResizing = false;
+        let activePointerId = null;
+        let startClientX = 0;
+        let startClientY = 0;
+        let startW = NOTE_SIZE;
+        let startH = NOTE_SIZE;
+
+        handle.addEventListener('pointerdown', (e) => {
+          if (activeTouches.size > 1) return;
+          if (e.button !== 0 && e.pointerType === 'mouse') return;
+
+          e.stopPropagation();
+          e.preventDefault();
+          cancelCameraAnimation();
+
+          isResizing = true;
+          activePointerId = e.pointerId;
+          startClientX = e.clientX;
+          startClientY = e.clientY;
+          const dims = getNoteDims(note);
+          startW = dims.w;
+          startH = dims.h;
+
+          highestZIndex += 1;
+          note.z = highestZIndex;
+          el.style.zIndex = note.z;
+          el.classList.add('is-resizing');
+
+          handle.setPointerCapture(e.pointerId);
+        });
+
+        handle.addEventListener('pointermove', (e) => {
+          if (!isResizing || e.pointerId !== activePointerId) return;
+
+          const dx = (e.clientX - startClientX) / camera.scale;
+          const dy = (e.clientY - startClientY) / camera.scale;
+
+          const m = getBoardMetrics();
+          const maxAllowedW = Math.min(MAX_NOTE_SIZE, m.maxX - 40 - note.x);
+          const maxAllowedH = Math.min(MAX_NOTE_SIZE, m.maxY - 40 - note.y);
+
+          note.width = Math.round(clampNumber(startW + dx, MIN_NOTE_SIZE, Math.max(MIN_NOTE_SIZE, maxAllowedW)));
+          note.height = Math.round(clampNumber(startH + dy, MIN_NOTE_SIZE, Math.max(MIN_NOTE_SIZE, maxAllowedH)));
+
+          el.style.width = `${note.width}px`;
+          el.style.height = `${note.height}px`;
+        });
+
+        const endResize = (e) => {
+          if (!isResizing || e.pointerId !== activePointerId) return;
+          isResizing = false;
+          el.classList.remove('is-resizing');
+
+          try {
+            if (handle.hasPointerCapture(e.pointerId)) {
+              handle.releasePointerCapture(e.pointerId);
+            }
+          } catch (_) {}
+
+          saveNotes();
+        };
+
+        handle.addEventListener('pointerup', endResize);
+        handle.addEventListener('pointercancel', endResize);
+      }
+
       function enableInlineEdit(note, noteEl, textDiv) {
         if (noteEl.querySelector('.postit-edit-area')) return;
 
         const textarea = document.createElement('textarea');
         textarea.className = 'postit-edit-area';
+        textarea.style.fontSize = `${note.fontSize || DEFAULT_FONT_SIZE}px`;
         textarea.value = note.text;
-        textarea.maxLength = 280;
+        textarea.maxLength = 400;
 
         textDiv.style.display = 'none';
         noteEl.insertBefore(textarea, textDiv);
@@ -1279,17 +1668,53 @@
           el.classList.add('is-focused');
         }
 
-        const targetScale = window.innerWidth < 640
-          ? Math.min(1.3, (window.innerWidth - 64) / NOTE_SIZE)
-          : 1.35;
+        const dims = getNoteDims(note);
+        const maxFitScale = Math.min(
+          (window.innerWidth - 56) / dims.w,
+          (window.innerHeight - 150) / dims.h
+        );
+        const targetScale = clampNumber(
+          Math.min(window.innerWidth < 640 ? 1.3 : 1.35, maxFitScale),
+          getMinScale(),
+          MAX_SCALE
+        );
 
-        const noteCenterX = note.x + NOTE_SIZE / 2;
-        const noteCenterY = note.y + NOTE_SIZE / 2;
+        const noteCenterX = note.x + dims.w / 2;
+        const noteCenterY = note.y + dims.h / 2;
 
         const targetX = window.innerWidth / 2 - noteCenterX * targetScale;
         const targetY = window.innerHeight / 2 - noteCenterY * targetScale;
 
         animateCameraTo(targetX, targetY, targetScale, 420);
+      }
+
+      function unfocusNote() {
+        if (!focusedNoteId) return;
+        const el = worldEl.querySelector(`.postit[data-id="${focusedNoteId}"]`);
+        if (el) {
+          const activeEditor = el.querySelector('.postit-edit-area');
+          if (activeEditor) activeEditor.blur();
+          el.classList.remove('is-focused');
+        }
+        focusedNoteId = null;
+      }
+
+      function completeAndDeleteNote(noteId, noteEl, customMessage = 'Tamamlandı! Not panodan silindi.') {
+        if (focusedNoteId === noteId) {
+          focusedNoteId = null;
+        }
+
+        noteEl.classList.remove('is-focused');
+        noteEl.classList.add('is-peeling');
+
+        notes = notes.filter((n) => n.id !== noteId);
+        saveNotes();
+
+        setTimeout(() => {
+          noteEl.remove();
+        }, 400);
+
+        showToast(customMessage, 2200);
       }
 
       function unfocusNote() {
@@ -1335,7 +1760,12 @@
 
         el.addEventListener('pointerdown', (e) => {
           if (activeTouches.size > 1) return;
-          if (e.target.closest('.btn-complete') || e.target.closest('.postit-edit-area')) return;
+          if (
+            e.target.closest('.btn-complete') ||
+            e.target.closest('.postit-edit-area') ||
+            e.target.closest('.postit-resize-handle') ||
+            e.target.closest('.postit-font-controls')
+          ) return;
           if (e.button !== 0 && e.pointerType === 'mouse') return;
 
           e.stopPropagation();
@@ -1372,9 +1802,12 @@
           }
 
           if (hasDragged) {
+            const dims = getNoteDims(note);
             const clampedPos = clampNoteCoords(
               startNoteX + dx / camera.scale,
-              startNoteY + dy / camera.scale
+              startNoteY + dy / camera.scale,
+              dims.w,
+              dims.h
             );
             note.x = clampedPos.x;
             note.y = clampedPos.y;
@@ -1563,52 +1996,45 @@
 
       // Sağ alt Zoom butonları
       btnZoomIn.addEventListener('click', () => {
-        zoomAtPoint(camera.scale * 1.25, window.innerWidth / 2, window.innerHeight / 2, true);
-      });
-
-      btnZoomOut.addEventListener('click', () => {
-        zoomAtPoint(camera.scale * 0.8, window.innerWidth / 2, window.innerHeight / 2, true);
-      });
-
-      btnResetView.addEventListener('click', () => resetViewToFitNotes(true));
-
-      /* =========================================================
-         11. YENİ NOT EKLEME MODALI VE 16 RENKLİ PALET
-      ========================================================= */
-      function buildColorPicker() {
-        colorPickerEl.innerHTML = '';
-        POSTIT_COLORS.forEach((c) => {
-          const btn = document.createElement('button');
-          btn.type = 'button';
-          btn.className = 'color-swatch' + (c.hex === selectedColor ? ' is-selected' : '');
-          btn.style.backgroundColor = c.hex;
-          btn.title = c.name;
-          btn.setAttribute('aria-label', c.name);
-          btn.setAttribute('role', 'radio');
-          btn.setAttribute('aria-checked', String(c.hex === selectedColor));
-
-          btn.addEventListener('click', () => {
-            selectedColor = c.hex;
-            localStorage.setItem(STORAGE_KEYS.LAST_COLOR, selectedColor);
-            modalCard.style.backgroundColor = selectedColor;
-
-            colorPickerEl.querySelectorAll('.color-swatch').forEach((sw) => {
-              sw.classList.remove('is-selected');
-              sw.setAttribute('aria-checked', 'false');
-            });
-            btn.classList.add('is-selected');
-            btn.setAttribute('aria-checked', 'true');
-            newNoteInput.focus();
-          });
-
-          colorPickerEl.appendChild(btn);
-        });
+      function syncModalFontSize(val) {
+        const clamped = clampNumber(parseInt(val, 10) || DEFAULT_FONT_SIZE, MIN_FONT_SIZE, MAX_FONT_SIZE);
+        selectedFontSize = clamped;
+        localStorage.setItem(STORAGE_KEYS.LAST_FONT_SIZE, String(clamped));
+        newNoteFontSizeInput.value = String(clamped);
+        newNoteInput.style.fontSize = `${clamped}px`;
       }
+
+      function syncModalRepeatCount(val) {
+        const clamped = clampNumber(parseInt(val, 10) || 1, 1, MAX_REPEAT_COUNT);
+        newNoteRepeatInput.value = String(clamped);
+      }
+
+      btnFontDec.addEventListener('click', () => syncModalFontSize(selectedFontSize - 2));
+      btnFontInc.addEventListener('click', () => syncModalFontSize(selectedFontSize + 2));
+      newNoteFontSizeInput.addEventListener('input', () => {
+        const parsed = parseInt(newNoteFontSizeInput.value, 10);
+        if (Number.isFinite(parsed) && parsed >= MIN_FONT_SIZE && parsed <= MAX_FONT_SIZE) {
+          selectedFontSize = parsed;
+          localStorage.setItem(STORAGE_KEYS.LAST_FONT_SIZE, String(parsed));
+          newNoteInput.style.fontSize = `${parsed}px`;
+        }
+      });
+      newNoteFontSizeInput.addEventListener('blur', () => syncModalFontSize(newNoteFontSizeInput.value));
+
+      btnRepeatDec.addEventListener('click', () => {
+        syncModalRepeatCount((parseInt(newNoteRepeatInput.value, 10) || 1) - 1);
+      });
+      btnRepeatInc.addEventListener('click', () => {
+        syncModalRepeatCount((parseInt(newNoteRepeatInput.value, 10) || 1) + 1);
+      });
+      newNoteRepeatInput.addEventListener('blur', () => syncModalRepeatCount(newNoteRepeatInput.value));
 
       function openAddModal() {
         unfocusNote();
         modalCard.style.backgroundColor = selectedColor;
         newNoteInput.value = '';
+        syncModalFontSize(selectedFontSize);
+        syncModalRepeatCount(1);
         addModal.classList.remove('hidden');
         addModal.classList.add('flex');
         setTimeout(() => newNoteInput.focus(), 60);
@@ -1627,6 +2053,8 @@
           return;
         }
 
+        const fontSize = clampNumber(parseInt(newNoteFontSizeInput.value, 10) || selectedFontSize, MIN_FONT_SIZE, MAX_FONT_SIZE);
+        const targetCount = clampNumber(parseInt(newNoteRepeatInput.value, 10) || 1, 1, MAX_REPEAT_COUNT);
         const pos = findNonOverlappingPosition();
         highestZIndex += 1;
 
@@ -1636,6 +2064,11 @@
           color: selectedColor,
           x: pos.x,
           y: pos.y,
+          width: NOTE_SIZE,
+          height: NOTE_SIZE,
+          fontSize,
+          targetCount,
+          doneCount: 0,
           rotation: randomRotation(),
           z: highestZIndex,
           createdAt: Date.now()
