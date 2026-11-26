@@ -1717,35 +1717,6 @@
         showToast(customMessage, 2200);
       }
 
-      function unfocusNote() {
-        if (!focusedNoteId) return;
-        const el = worldEl.querySelector(`.postit[data-id="${focusedNoteId}"]`);
-        if (el) {
-          const activeEditor = el.querySelector('.postit-edit-area');
-          if (activeEditor) activeEditor.blur();
-          el.classList.remove('is-focused');
-        }
-        focusedNoteId = null;
-      }
-
-      function completeAndDeleteNote(noteId, noteEl) {
-        if (focusedNoteId === noteId) {
-          focusedNoteId = null;
-        }
-
-        noteEl.classList.remove('is-focused');
-        noteEl.classList.add('is-peeling');
-
-        notes = notes.filter((n) => n.id !== noteId);
-        saveNotes();
-
-        setTimeout(() => {
-          noteEl.remove();
-        }, 400);
-
-        showToast('Tamamlandı! Not panodan silindi.', 2200);
-      }
-
       /* =========================================================
          9. NOT SÜRÜKLE-BIRAK VE TIKLAMA AYRIMI
       ========================================================= */
@@ -1996,6 +1967,47 @@
 
       // Sağ alt Zoom butonları
       btnZoomIn.addEventListener('click', () => {
+        zoomAtPoint(camera.scale * 1.22, window.innerWidth / 2, window.innerHeight / 2, true);
+      });
+
+      btnZoomOut.addEventListener('click', () => {
+        zoomAtPoint(camera.scale * 0.82, window.innerWidth / 2, window.innerHeight / 2, true);
+      });
+
+      btnResetView.addEventListener('click', () => {
+        resetViewToFitNotes(true);
+      });
+
+      /* =========================================================
+         11. YENİ NOT EKLEME MODALI VE 16 RENKLİ SEÇİCİ
+      ========================================================= */
+      function buildColorPicker() {
+        colorPickerEl.innerHTML = '';
+        POSTIT_COLORS.forEach((color) => {
+          const btn = document.createElement('button');
+          btn.type = 'button';
+          btn.className = 'color-swatch' + (color.hex === selectedColor ? ' is-selected' : '');
+          btn.style.backgroundColor = color.hex;
+          btn.title = color.name;
+          btn.setAttribute('aria-label', color.name);
+          btn.setAttribute('role', 'radio');
+          btn.setAttribute('aria-checked', String(color.hex === selectedColor));
+
+          btn.addEventListener('click', () => {
+            selectedColor = color.hex;
+            localStorage.setItem(STORAGE_KEYS.LAST_COLOR, color.hex);
+            modalCard.style.backgroundColor = color.hex;
+            colorPickerEl.querySelectorAll('.color-swatch').forEach((sw) => {
+              const isSelected = sw === btn;
+              sw.classList.toggle('is-selected', isSelected);
+              sw.setAttribute('aria-checked', String(isSelected));
+            });
+          });
+
+          colorPickerEl.appendChild(btn);
+        });
+      }
+
       function syncModalFontSize(val) {
         const clamped = clampNumber(parseInt(val, 10) || DEFAULT_FONT_SIZE, MIN_FONT_SIZE, MAX_FONT_SIZE);
         selectedFontSize = clamped;
